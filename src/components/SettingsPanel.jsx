@@ -5,6 +5,7 @@ export default function SettingsPanel({
   muted, setMuted,
   hapticsEnabled, setHapticsEnabled,
   shakeEnabled, setShakeEnabled,
+  requestShakePermission,
   theme, toggleTheme,
   players, addPlayer, removePlayer,
   onResetAll,
@@ -26,7 +27,11 @@ export default function SettingsPanel({
         <div style={styles.content}>
           <ToggleRow label="Sound" value={!muted} onToggle={() => setMuted(!muted)} themeStyles={themeStyles} />
           <ToggleRow label="Haptic Feedback" value={hapticsEnabled} onToggle={() => setHapticsEnabled(!hapticsEnabled)} themeStyles={themeStyles} />
-          <ToggleRow label="Shake to Shuffle" value={shakeEnabled} onToggle={() => setShakeEnabled(!shakeEnabled)} themeStyles={themeStyles} />
+          <ToggleRow label="Shake to Shuffle" value={shakeEnabled} onToggle={() => {
+            const newVal = !shakeEnabled;
+            setShakeEnabled(newVal);
+            if (newVal && requestShakePermission) requestShakePermission();
+          }} themeStyles={themeStyles} />
           <ToggleRow label={`Theme: ${theme === 'dark' ? 'Dark' : 'Light'}`} value={theme === 'dark'} onToggle={toggleTheme} themeStyles={themeStyles} />
 
           <div style={styles.divider} />

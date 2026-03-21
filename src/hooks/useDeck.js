@@ -41,8 +41,6 @@ function reducer(state, action) {
         history: state.currentCard
           ? [...state.history, state.currentCard]
           : state.history,
-        lastDrawn: card,
-        prevCard: state.currentCard,
       };
     }
     case 'undo': {
@@ -54,30 +52,16 @@ function reducer(state, action) {
         deck: [...state.deck, state.currentCard],
         currentCard: prevCard,
         history: prevCard !== null ? newHistory : [],
-        lastDrawn: null,
-        prevCard: null,
       };
     }
     case 'shuffle': {
       const allCards = [...state.deck];
       if (state.currentCard) allCards.push(state.currentCard);
       state.history.forEach((c) => allCards.push(c));
-      return {
-        deck: shuffleDeck(allCards),
-        currentCard: null,
-        history: [],
-        lastDrawn: null,
-        prevCard: null,
-      };
+      return { deck: shuffleDeck(allCards), currentCard: null, history: [] };
     }
     case 'reset':
-      return {
-        deck: createShuffledDeck(),
-        currentCard: null,
-        history: [],
-        lastDrawn: null,
-        prevCard: null,
-      };
+      return { deck: createShuffledDeck(), currentCard: null, history: [] };
     default:
       return state;
   }
@@ -86,18 +70,22 @@ function reducer(state, action) {
 export function useDeck() {
   const [state, dispatch] = useReducer(reducer, null, loadState);
   const [drawKey, setDrawKey] = useState(0);
-  const prevStateRef = useRef(state);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
-  useEffect(() => {
-    if (state !== prevStateRef.current) {
-      saveState(state);
-      prevStateRef.current = state;
-    }
-  }, [state]);
+  // Persist to localStorage
+  useEffect(() => { saveState(state); }, [state]);
 
+  // Peek at top card + current card before dispatching, so callers
+  // get synchronous return values (needed for user-gesture context)
   const draw = useCallback(() => {
+    const s = stateRef.current;
+    if (s.deck.length === 0) return null;
+    const card = s.deck[s.deck.length - 1];
+    const prevCard = s.currentCard;
     dispatch({ type: 'draw' });
     setDrawKey((k) => k + 1);
+    return { card, prevCard };
   }, []);
 
   const undo = useCallback(() => {
@@ -117,8 +105,6 @@ export function useDeck() {
 
   return {
     currentCard: state.currentCard,
-    lastDrawn: state.lastDrawn || null,
-    prevCard: state.prevCard || null,
     history: state.history,
     drawKey,
     cardsRemaining: state.deck.length,
