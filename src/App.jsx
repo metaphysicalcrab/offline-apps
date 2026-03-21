@@ -37,7 +37,7 @@ export default function App() {
     gameMode.resetModeState();
   }, [deck, audio, haptics, gameMode]);
 
-  useShake(handleShuffle);
+  const { shakeEnabled, setShakeEnabled } = useShake(handleShuffle);
 
   const handleDraw = useCallback(() => {
     const prevCard = deck.currentCard;
@@ -154,8 +154,8 @@ export default function App() {
           setMuted={audio.setMuted}
           hapticsEnabled={haptics.hapticsEnabled}
           setHapticsEnabled={haptics.setHapticsEnabled}
-          shakeEnabled={false}
-          setShakeEnabled={() => {}}
+          shakeEnabled={shakeEnabled}
+          setShakeEnabled={setShakeEnabled}
           theme={theme}
           toggleTheme={toggleTheme}
           players={turns.players}

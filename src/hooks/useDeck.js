@@ -4,7 +4,7 @@ import { createShuffledDeck } from '../game/deck.js';
 import { STORAGE_KEYS } from '../constants.js';
 
 export function useDeck() {
-  const [deck, setDeck] = useLocalStorage(STORAGE_KEYS.DECK, () => createShuffledDeck());
+  const [deck, setDeck] = useLocalStorage(STORAGE_KEYS.DECK, createShuffledDeck());
   const [currentCard, setCurrentCard] = useLocalStorage(STORAGE_KEYS.CURRENT_CARD, null);
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.HISTORY, []);
   const [drawKey, setDrawKey] = useState(0);
