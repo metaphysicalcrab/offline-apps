@@ -43,28 +43,32 @@ export default function KingsCupOverlay({ card, kingCount, customRules, currentP
         </div>
       ) : (
         <div style={{ ...styles.ruleBox, ...themeStyles?.modal, animation: 'slideUp 0.3s ease-out' }}>
-          <div style={{ ...themeStyles?.textAccent, fontSize: 18, fontWeight: 'bold' }}>
+          <div style={{ ...themeStyles?.textAccent, fontSize: 18, fontWeight: 600 }}>
             {rule.title}
           </div>
           <div style={{ ...themeStyles?.text, fontSize: 14, lineHeight: 1.5 }}>
             {rule.desc}
           </div>
           {isJack && onAddRule && (
-            <div style={styles.ruleInputRow}>
+            <div style={styles.addRow}>
               <input
                 type="text"
                 value={ruleInput}
                 onChange={(e) => setRuleInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Type the new rule..."
-                style={{ ...styles.ruleInput, ...themeStyles?.input }}
+                style={{ ...themeStyles?.input, flex: 1 }}
               />
               <button
                 onClick={handleSubmitRule}
                 disabled={!ruleInput.trim()}
-                style={{ ...styles.addBtn, opacity: ruleInput.trim() ? 1 : 0.4 }}
+                style={{
+                  ...styles.addBtn,
+                  ...themeStyles?.buttonPrimary,
+                  opacity: ruleInput.trim() ? 1 : 0.4,
+                }}
               >
-                Add
+                +
               </button>
             </div>
           )}
@@ -97,29 +101,20 @@ const styles = {
     flexDirection: 'column',
     gap: 6,
   },
-  ruleInputRow: {
+  addRow: {
     display: 'flex',
     gap: 8,
-    marginTop: 6,
-  },
-  ruleInput: {
-    flex: 1,
-    padding: '8px 12px',
-    borderRadius: 8,
-    border: '1px solid rgba(128,128,128,0.3)',
-    fontSize: 14,
-    background: 'rgba(255,255,255,0.1)',
-    color: 'inherit',
-    outline: 'none',
+    marginTop: 4,
   },
   addBtn: {
-    padding: '8px 16px',
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 10,
     border: 'none',
-    background: '#6c5ce7',
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 20,
     cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 };
