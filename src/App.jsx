@@ -17,6 +17,7 @@ import CardHistory from './components/CardHistory.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import RulesEditor from './components/RulesEditor.jsx';
 import ActiveRulesList from './components/ActiveRulesList.jsx';
+import HowToPlay from './components/HowToPlay.jsx';
 
 export default function App() {
   const { theme, themeStyles, toggleTheme } = useTheme();
@@ -28,6 +29,7 @@ export default function App() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
   const [lastOutcome, setLastOutcome] = useState(null);
 
   const handleDraw = useCallback(() => {
@@ -89,6 +91,9 @@ export default function App() {
           themeStyles={themeStyles}
         />
         <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setShowHowToPlay(true)} style={styles.iconBtn} aria-label="How to play">
+            ❓
+          </button>
           <button onClick={toggleTheme} style={styles.iconBtn} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
@@ -176,6 +181,14 @@ export default function App() {
           onSave={gameMode.saveRules}
           onReset={gameMode.resetRules}
           onClose={() => setShowRules(false)}
+          themeStyles={themeStyles}
+        />
+      )}
+
+      {showHowToPlay && (
+        <HowToPlay
+          mode={gameMode.mode}
+          onClose={() => setShowHowToPlay(false)}
           themeStyles={themeStyles}
         />
       )}
