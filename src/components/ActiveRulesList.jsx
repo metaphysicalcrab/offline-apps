@@ -6,7 +6,7 @@ export default function ActiveRulesList({ rules, onRemove, themeStyles }) {
   if (!rules || rules.length === 0) return null;
 
   return (
-    <div style={{ ...styles.container, ...themeStyles?.modal }}>
+    <div style={{ ...styles.container, ...themeStyles?.button }}>
       <button
         onClick={() => setExpanded(!expanded)}
         style={styles.header}

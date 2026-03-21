@@ -84,7 +84,6 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     gap: 8,
-    padding: '0 20px',
     width: '100%',
     maxWidth: 400,
     alignSelf: 'center',
