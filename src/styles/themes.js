@@ -74,6 +74,7 @@ export const darkTheme = {
     color: '#d4a843',
     border: '1px solid rgba(212,168,67,0.3)',
   },
+  toggleActive: '#148f4b',
 };
 
 export const lightTheme = {
@@ -152,4 +153,5 @@ export const lightTheme = {
     color: '#8b5e3c',
     border: '1px solid rgba(139,94,60,0.25)',
   },
+  toggleActive: '#4a7a3c',
 };

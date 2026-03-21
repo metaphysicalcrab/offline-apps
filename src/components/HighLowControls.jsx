@@ -37,6 +37,16 @@ export default function HighLowControls({
         <span style={themeStyles?.textMuted}>Streak</span>
         <span style={{ ...themeStyles?.textAccent, fontSize: 24, fontWeight: 'bold' }}>{streak}</span>
         <span style={{ ...themeStyles?.textMuted, fontSize: 12 }}>Best: {bestStreak}</span>
+        {flash === 'wrong' && (
+          <span style={{ color: '#e74c3c', fontSize: 12, fontWeight: 600, animation: 'slideUp 0.2s ease-out' }}>
+            Streak reset!
+          </span>
+        )}
+        {flash === 'correct' && (
+          <span style={{ color: '#2ecc71', fontSize: 12, fontWeight: 600, animation: 'slideUp 0.2s ease-out' }}>
+            Correct!
+          </span>
+        )}
       </div>
       <div style={styles.buttons}>
         <button

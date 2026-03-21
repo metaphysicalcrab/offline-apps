@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { RANKS, DEFAULT_KINGS_CUP_RULES } from '../constants.js';
 
 export default function RulesEditor({ customRules, onSave, onReset, onClose, themeStyles }) {
@@ -43,9 +43,18 @@ export default function RulesEditor({ customRules, onSave, onReset, onClose, the
     cursor: 'pointer',
   };
 
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
   return (
     <div style={{ ...styles.overlay, ...themeStyles?.overlay }} onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit Rules"
         style={{ ...styles.modal, ...themeStyles?.modal }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -53,7 +62,7 @@ export default function RulesEditor({ customRules, onSave, onReset, onClose, the
           <span style={{ ...themeStyles?.text, fontSize: 18, fontWeight: 'bold' }}>
             Edit Rules
           </span>
-          <button onClick={onClose} style={styles.closeBtn}>×</button>
+          <button onClick={onClose} style={styles.closeBtn} aria-label="Close rules editor">×</button>
         </div>
 
         <div style={styles.rulesList}>

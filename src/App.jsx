@@ -82,12 +82,17 @@ export default function App() {
   return (
     <div style={themeStyles.app}>
       <header style={themeStyles.header}>
-        <GameModeSelector mode={gameMode.mode} setMode={gameMode.setMode} themeStyles={themeStyles} />
+        <GameModeSelector
+          mode={gameMode.mode}
+          setMode={gameMode.setMode}
+          hasActiveState={gameMode.activeRules?.length > 0 || gameMode.streak > 0 || gameMode.kingCount > 0}
+          themeStyles={themeStyles}
+        />
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={toggleTheme} style={styles.iconBtn}>
+          <button onClick={toggleTheme} style={styles.iconBtn} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
-          <button onClick={() => setShowSettings(true)} style={styles.iconBtn}>
+          <button onClick={() => setShowSettings(true)} style={styles.iconBtn} aria-label="Settings">
             ⚙️
           </button>
         </div>
@@ -104,7 +109,7 @@ export default function App() {
       <Card card={deck.currentCard} drawKey={deck.drawKey} themeStyles={themeStyles} />
 
       {gameMode.mode === GAME_MODES.KINGS_CUP && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '0 20px', width: '100%' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '0 20px', marginBottom: 8, width: '100%' }}>
           <KingsCupOverlay
             card={deck.currentCard}
             kingCount={gameMode.kingCount}

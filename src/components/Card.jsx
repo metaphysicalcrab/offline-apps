@@ -46,9 +46,9 @@ export default function Card({ card, drawKey, themeStyles }) {
   if (!card) {
     return (
       <div style={{ ...styles.container, ...themeStyles?.cardArea }}>
-        <div style={styles.placeholder}>
+        <div style={{ ...styles.placeholder, borderColor: themeStyles?.textMuted?.color || 'rgba(255,255,255,0.15)' }}>
           <span style={{ fontSize: 48, opacity: 0.3 }}>🂠</span>
-          <span style={{ opacity: 0.4, marginTop: 8, fontSize: 14 }}>Draw a card</span>
+          <span style={{ ...themeStyles?.textMuted, marginTop: 8, fontSize: 14 }}>Draw a card</span>
         </div>
       </div>
     );
@@ -78,7 +78,7 @@ const styles = {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     borderRadius: BORDER_RADIUS,
-    border: '3px dashed rgba(255,255,255,0.15)',
+    border: '3px dashed',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
