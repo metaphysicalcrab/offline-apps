@@ -1,11 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { getRuleForCard } from '../game/kingsCupRules.js';
 
-export default function KingsCupOverlay({ card, kingCount, customRules, themeStyles }) {
+export default function KingsCupOverlay({ card, kingCount, customRules, currentPlayer, onAddRule, themeStyles }) {
+  const [ruleInput, setRuleInput] = useState('');
+
   if (!card) return null;
 
   const rule = getRuleForCard(card, customRules);
   const isGameOver = kingCount >= 4;
+  const isJack = card.rank === 'J';
+
+  const handleSubmitRule = () => {
+    const text = ruleInput.trim();
+    if (!text) return;
+    onAddRule(text, currentPlayer);
+    setRuleInput('');
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') handleSubmitRule();
+  };
 
   return (
     <div style={styles.container}>
@@ -35,6 +49,25 @@ export default function KingsCupOverlay({ card, kingCount, customRules, themeSty
           <div style={{ ...themeStyles?.text, fontSize: 14, lineHeight: 1.5 }}>
             {rule.desc}
           </div>
+          {isJack && onAddRule && (
+            <div style={styles.ruleInputRow}>
+              <input
+                type="text"
+                value={ruleInput}
+                onChange={(e) => setRuleInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Type the new rule..."
+                style={{ ...styles.ruleInput, ...themeStyles?.input }}
+              />
+              <button
+                onClick={handleSubmitRule}
+                disabled={!ruleInput.trim()}
+                style={{ ...styles.addBtn, opacity: ruleInput.trim() ? 1 : 0.4 }}
+              >
+                Add
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -63,5 +96,30 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: 6,
+  },
+  ruleInputRow: {
+    display: 'flex',
+    gap: 8,
+    marginTop: 6,
+  },
+  ruleInput: {
+    flex: 1,
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: '1px solid rgba(128,128,128,0.3)',
+    fontSize: 14,
+    background: 'rgba(255,255,255,0.1)',
+    color: 'inherit',
+    outline: 'none',
+  },
+  addBtn: {
+    padding: '8px 16px',
+    borderRadius: 8,
+    border: 'none',
+    background: '#6c5ce7',
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    cursor: 'pointer',
   },
 };

@@ -33,6 +33,7 @@ export const STORAGE_KEYS = {
   HIGH_LOW_STREAK: 'card-app-streak',
   HIGH_LOW_BEST: 'card-app-best-streak',
   KING_COUNT: 'card-app-king-count',
+  ACTIVE_RULES: 'card-app-active-rules',
 };
 
 export const AUDIO_PARAMS = {
