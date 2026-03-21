@@ -6,22 +6,24 @@ export default function ActiveRulesList({ rules, onRemove, themeStyles }) {
   if (!rules || rules.length === 0) return null;
 
   return (
-    <div style={{ ...styles.container, ...themeStyles?.modal }}>
+    <div style={{ ...styles.container, ...themeStyles?.button }}>
       <button
         onClick={() => setExpanded(!expanded)}
-        style={{ ...styles.header, ...themeStyles?.textAccent }}
+        style={styles.header}
       >
-        <span>Active Rules ({rules.length})</span>
-        <span style={{ fontSize: 12 }}>{expanded ? '▲' : '▼'}</span>
+        <span style={{ ...themeStyles?.textAccent, fontSize: 14, fontWeight: 600 }}>
+          Active Rules ({rules.length})
+        </span>
+        <span style={{ ...themeStyles?.textMuted, fontSize: 12 }}>{expanded ? '▲' : '▼'}</span>
       </button>
       {expanded && (
         <div style={styles.list}>
           {rules.map((rule) => (
-            <div key={rule.id} style={{ ...styles.ruleItem, ...themeStyles?.text }}>
+            <div key={rule.id} style={{ ...styles.ruleChip, ...themeStyles?.button }}>
               <div style={styles.ruleContent}>
-                <span style={styles.ruleText}>{rule.text}</span>
+                <span style={{ ...themeStyles?.text, fontSize: 13 }}>{rule.text}</span>
                 {rule.createdBy && (
-                  <span style={{ ...styles.createdBy, ...themeStyles?.textMuted }}>
+                  <span style={{ ...themeStyles?.textMuted, fontSize: 11, fontStyle: 'italic', marginLeft: 4 }}>
                     — {rule.createdBy}
                   </span>
                 )}
@@ -32,7 +34,7 @@ export default function ActiveRulesList({ rules, onRemove, themeStyles }) {
                   style={styles.removeBtn}
                   title="Remove rule"
                 >
-                  ✕
+                  ×
                 </button>
               )}
             </div>
@@ -50,56 +52,45 @@ const styles = {
     borderRadius: 14,
     overflow: 'hidden',
     alignSelf: 'center',
-    margin: '0 20px',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    padding: '10px 16px',
+    padding: '10px 20px',
     background: 'none',
     border: 'none',
-    fontSize: 14,
-    fontWeight: 'bold',
     cursor: 'pointer',
     color: 'inherit',
   },
   list: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 2,
-    padding: '0 12px 10px',
+    gap: 6,
+    padding: '0 14px 12px',
   },
-  ruleItem: {
+  ruleChip: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    padding: '6px 8px',
+    padding: '6px 10px',
     borderRadius: 8,
-    fontSize: 13,
   },
   ruleContent: {
     flex: 1,
     minWidth: 0,
   },
-  ruleText: {
-    wordBreak: 'break-word',
-  },
-  createdBy: {
-    fontSize: 11,
-    fontStyle: 'italic',
-  },
   removeBtn: {
     background: 'none',
     border: 'none',
-    fontSize: 14,
-    cursor: 'pointer',
-    opacity: 0.5,
-    padding: '2px 6px',
-    borderRadius: 4,
     color: 'inherit',
+    opacity: 0.5,
+    cursor: 'pointer',
+    fontSize: 16,
+    padding: 0,
+    lineHeight: 1,
     flexShrink: 0,
   },
 };

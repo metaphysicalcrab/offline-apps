@@ -104,7 +104,7 @@ export default function App() {
       <Card card={deck.currentCard} drawKey={deck.drawKey} themeStyles={themeStyles} />
 
       {gameMode.mode === GAME_MODES.KINGS_CUP && (
-        <>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '0 20px', width: '100%' }}>
           <KingsCupOverlay
             card={deck.currentCard}
             kingCount={gameMode.kingCount}
@@ -118,7 +118,7 @@ export default function App() {
             onRemove={gameMode.removeActiveRule}
             themeStyles={themeStyles}
           />
-        </>
+        </div>
       )}
 
       {gameMode.mode === GAME_MODES.HIGH_LOW && (
