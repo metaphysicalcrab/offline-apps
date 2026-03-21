@@ -27,7 +27,6 @@ export default function App() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showRules, setShowRules] = useState(false);
-  const [highLowGuess, setHighLowGuess] = useState(null);
   const [lastOutcome, setLastOutcome] = useState(null);
 
   const handleShuffle = useCallback(() => {
@@ -40,7 +39,6 @@ export default function App() {
   const { shakeEnabled, setShakeEnabled } = useShake(handleShuffle);
 
   const handleDraw = useCallback(() => {
-    const prevCard = deck.currentCard;
     const card = deck.draw();
     if (!card) return;
 
@@ -50,22 +48,10 @@ export default function App() {
 
     if (gameMode.mode === GAME_MODES.KINGS_CUP) {
       gameMode.handleKingsCupDraw(card);
-    } else if (gameMode.mode === GAME_MODES.HIGH_LOW && highLowGuess && prevCard) {
-      const result = gameMode.handleHighLowGuess(highLowGuess, prevCard, card);
-      setLastOutcome(result.outcome);
-      if (result.outcome === 'correct') {
-        audio.playSuccess();
-        haptics.vibrate(HAPTIC_PATTERNS.success);
-      } else {
-        audio.playFail();
-        haptics.vibrate(HAPTIC_PATTERNS.fail);
-      }
-      setHighLowGuess(null);
     }
-  }, [deck, audio, haptics, turns, gameMode, highLowGuess]);
+  }, [deck, audio, haptics, turns, gameMode]);
 
   const handleHighLowGuess = useCallback((guess) => {
-    setHighLowGuess(guess);
     const prevCard = deck.currentCard;
     const card = deck.draw();
     if (!card) return;
@@ -90,6 +76,7 @@ export default function App() {
   const handleReset = useCallback(() => {
     deck.reset();
     gameMode.resetModeState();
+    setLastOutcome(null);
   }, [deck, gameMode]);
 
   return (
@@ -125,7 +112,7 @@ export default function App() {
         />
       )}
 
-      {gameMode.mode === GAME_MODES.HIGH_LOW ? (
+      {gameMode.mode === GAME_MODES.HIGH_LOW && (
         <HighLowControls
           currentCard={deck.currentCard}
           streak={gameMode.streak}
@@ -134,7 +121,7 @@ export default function App() {
           lastOutcome={lastOutcome}
           themeStyles={themeStyles}
         />
-      ) : null}
+      )}
 
       <DeckControls
         cardsRemaining={deck.cardsRemaining}
@@ -188,5 +175,7 @@ const styles = {
     fontSize: 20,
     cursor: 'pointer',
     padding: 4,
+    borderRadius: 8,
+    transition: 'opacity 0.2s',
   },
 };

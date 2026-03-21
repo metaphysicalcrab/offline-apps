@@ -20,18 +20,23 @@ export default function DeckControls({
     ...themeStyles?.button,
   };
 
+  const disabledStyle = { opacity: 0.4, cursor: 'default' };
+
   return (
     <div style={styles.container}>
       <div style={styles.row}>
         <button
-          style={{ ...btnBase, ...themeStyles?.buttonPrimary, flex: 2 }}
+          style={{
+            ...btnBase, ...themeStyles?.buttonPrimary, flex: 2,
+            ...(cardsRemaining === 0 ? disabledStyle : {}),
+          }}
           onClick={onDraw}
           disabled={cardsRemaining === 0}
         >
-          Draw {cardsRemaining > 0 && `(${cardsRemaining})`}
+          Draw ({cardsRemaining})
         </button>
         <button
-          style={{ ...btnBase, opacity: canUndo ? 1 : 0.4 }}
+          style={{ ...btnBase, ...(!canUndo ? disabledStyle : {}) }}
           onClick={onUndo}
           disabled={!canUndo}
         >
