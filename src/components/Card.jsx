@@ -4,9 +4,25 @@ const CARD_WIDTH = 200;
 const CARD_HEIGHT = 300;
 const BORDER_RADIUS = 16;
 
-function CardBack() {
+function darken(hex, amt = 40) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = Math.max(0, (n >> 16) - amt);
+  const g = Math.max(0, ((n >> 8) & 0xff) - amt);
+  const b = Math.max(0, (n & 0xff) - amt);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+function lighten(hex, amt = 30) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = Math.min(255, (n >> 16) + amt);
+  const g = Math.min(255, ((n >> 8) & 0xff) + amt);
+  const b = Math.min(255, (n & 0xff) + amt);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+function CardBackClassic({ color }) {
   return (
-    <div style={styles.back}>
+    <div style={{ ...styles.back, background: `linear-gradient(135deg, ${color}, ${darken(color)})`, border: `3px solid ${lighten(color)}` }}>
       <div style={styles.backPattern}>
         <div style={styles.backInner}>
           <span style={styles.backSymbol}>&#9824;&#9829;</span>
@@ -16,6 +32,40 @@ function CardBack() {
     </div>
   );
 }
+
+function CardBackMinimal({ color }) {
+  return (
+    <div style={{ ...styles.back, background: color, border: `3px solid ${lighten(color, 20)}` }}>
+      <div style={{ fontSize: 40, color: 'rgba(255,255,255,0.15)' }}>&#9824;</div>
+    </div>
+  );
+}
+
+function CardBackOrnate({ color }) {
+  return (
+    <div style={{ ...styles.back, background: `linear-gradient(135deg, ${color}, ${darken(color)})`, border: `3px solid ${lighten(color)}` }}>
+      <div style={{ ...styles.backPattern, borderWidth: 3 }}>
+        <div style={{
+          width: '80%', height: '80%',
+          border: `1px solid rgba(255,255,255,0.15)`,
+          borderRadius: 6,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexDirection: 'column', gap: 2,
+        }}>
+          <span style={{ fontSize: 20, color: 'rgba(255,255,255,0.25)', letterSpacing: 4 }}>&#9824;&#9829;&#9830;&#9827;</span>
+          <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.2)', fontWeight: 'bold' }}>DRAW</span>
+          <span style={{ fontSize: 20, color: 'rgba(255,255,255,0.25)', letterSpacing: 4 }}>&#9827;&#9830;&#9829;&#9824;</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const BACK_COMPONENTS = {
+  classic: CardBackClassic,
+  minimal: CardBackMinimal,
+  ornate: CardBackOrnate,
+};
 
 function CardFace({ card }) {
   const isRed = card.suit === '♥' || card.suit === '♦';
@@ -33,7 +83,7 @@ function CardFace({ card }) {
   );
 }
 
-export default function Card({ card, drawKey, themeStyles }) {
+export default function Card({ card, drawKey, themeStyles, cardBackColor, cardBackStyle }) {
   const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
@@ -44,11 +94,11 @@ export default function Card({ card, drawKey, themeStyles }) {
   }, [drawKey]);
 
   if (!card) {
+    const BackComp = BACK_COMPONENTS[cardBackStyle] || CardBackClassic;
     return (
       <div style={{ ...styles.container, ...themeStyles?.cardArea }}>
-        <div style={{ ...styles.placeholder, borderColor: themeStyles?.textMuted?.color || 'rgba(255,255,255,0.15)' }}>
-          <span style={{ fontSize: 48, opacity: 0.3 }}>🂠</span>
-          <span style={{ ...themeStyles?.textMuted, marginTop: 8, fontSize: 14 }}>Draw a card</span>
+        <div style={{ opacity: 0.5, cursor: 'default' }}>
+          <BackComp color={cardBackColor || '#1a472a'} />
         </div>
       </div>
     );
@@ -62,6 +112,16 @@ export default function Card({ card, drawKey, themeStyles }) {
       }}>
         <CardFace card={card} />
       </div>
+    </div>
+  );
+}
+
+// Export for preview in settings
+export function CardBackPreview({ color, style }) {
+  const BackComp = BACK_COMPONENTS[style] || CardBackClassic;
+  return (
+    <div style={{ transform: 'scale(0.35)', transformOrigin: 'top left', width: CARD_WIDTH, height: CARD_HEIGHT }}>
+      <BackComp color={color || '#1a472a'} />
     </div>
   );
 }
@@ -105,11 +165,9 @@ const styles = {
     height: CARD_HEIGHT,
     borderRadius: BORDER_RADIUS,
     boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-    background: 'linear-gradient(135deg, #1a472a, #0d3320)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '3px solid #2d6b45',
   },
   backPattern: {
     width: '85%',

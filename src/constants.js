@@ -34,6 +34,9 @@ export const STORAGE_KEYS = {
   HIGH_LOW_BEST: 'card-app-best-streak',
   KING_COUNT: 'card-app-king-count',
   ACTIVE_RULES: 'card-app-active-rules',
+  CARD_BACK_COLOR: 'card-app-back-color',
+  CARD_BACK_STYLE: 'card-app-back-style',
+  FONT_FAMILY: 'card-app-font',
 };
 
 export const AUDIO_PARAMS = {
