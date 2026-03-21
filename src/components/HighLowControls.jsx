@@ -89,6 +89,6 @@ const styles = {
   },
   buttons: {
     display: 'flex',
-    gap: 8,
+    gap: 12,
   },
 };
