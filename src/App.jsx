@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GAME_MODES, HAPTIC_PATTERNS } from './constants.js';
 import { useDeck } from './hooks/useDeck.js';
 import { useGameMode } from './hooks/useGameMode.js';
@@ -28,6 +28,38 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [lastOutcome, setLastOutcome] = useState(null);
+  const [pendingGuess, setPendingGuess] = useState(null);
+
+  // React to new cards being drawn — handle game mode logic here
+  const prevDrawKey = useRef(deck.drawKey);
+  useEffect(() => {
+    if (deck.drawKey === prevDrawKey.current) return;
+    prevDrawKey.current = deck.drawKey;
+
+    const card = deck.lastDrawn;
+    if (!card) return;
+
+    audio.playFlip();
+    haptics.vibrate(HAPTIC_PATTERNS.tap);
+    turns.nextTurn();
+
+    if (gameMode.mode === GAME_MODES.KINGS_CUP) {
+      gameMode.handleKingsCupDraw(card);
+    }
+
+    if (gameMode.mode === GAME_MODES.HIGH_LOW && pendingGuess && deck.prevCard) {
+      const result = gameMode.handleHighLowGuess(pendingGuess, deck.prevCard, card);
+      setLastOutcome(result.outcome);
+      setPendingGuess(null);
+      if (result.outcome === 'correct') {
+        audio.playSuccess();
+        haptics.vibrate(HAPTIC_PATTERNS.success);
+      } else {
+        audio.playFail();
+        haptics.vibrate(HAPTIC_PATTERNS.fail);
+      }
+    }
+  });
 
   const handleShuffle = useCallback(() => {
     deck.shuffle();
@@ -38,45 +70,16 @@ export default function App() {
 
   const { shakeEnabled, setShakeEnabled } = useShake(handleShuffle);
 
-  const handleDraw = useCallback(() => {
-    const card = deck.draw();
-    if (!card) return;
-
-    audio.playFlip();
-    haptics.vibrate(HAPTIC_PATTERNS.tap);
-    turns.nextTurn();
-
-    if (gameMode.mode === GAME_MODES.KINGS_CUP) {
-      gameMode.handleKingsCupDraw(card);
-    }
-  }, [deck, audio, haptics, turns, gameMode]);
-
   const handleHighLowGuess = useCallback((guess) => {
-    const prevCard = deck.currentCard;
-    const card = deck.draw();
-    if (!card) return;
-
-    audio.playFlip();
-    haptics.vibrate(HAPTIC_PATTERNS.tap);
-    turns.nextTurn();
-
-    if (prevCard) {
-      const result = gameMode.handleHighLowGuess(guess, prevCard, card);
-      setLastOutcome(result.outcome);
-      if (result.outcome === 'correct') {
-        audio.playSuccess();
-        haptics.vibrate(HAPTIC_PATTERNS.success);
-      } else {
-        audio.playFail();
-        haptics.vibrate(HAPTIC_PATTERNS.fail);
-      }
-    }
-  }, [deck, audio, haptics, turns, gameMode]);
+    setPendingGuess(guess);
+    deck.draw();
+  }, [deck]);
 
   const handleReset = useCallback(() => {
     deck.reset();
     gameMode.resetModeState();
     setLastOutcome(null);
+    setPendingGuess(null);
   }, [deck, gameMode]);
 
   return (
@@ -126,7 +129,7 @@ export default function App() {
       <DeckControls
         cardsRemaining={deck.cardsRemaining}
         canUndo={!!deck.currentCard}
-        onDraw={handleDraw}
+        onDraw={deck.draw}
         onUndo={deck.undo}
         onShuffle={handleShuffle}
         onReset={handleReset}

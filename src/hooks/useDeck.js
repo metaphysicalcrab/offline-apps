@@ -1,70 +1,127 @@
-import { useState, useCallback } from 'react';
-import { useLocalStorage } from './useLocalStorage.js';
+import { useReducer, useCallback, useEffect, useRef, useState } from 'react';
 import { createShuffledDeck, shuffleDeck } from '../game/deck.js';
-import { STORAGE_KEYS } from '../constants.js';
+
+const STORAGE_KEY = 'card-app-deck-state';
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.deck)) return parsed;
+    }
+  } catch { /* ignore corrupt data */ }
+  return {
+    deck: createShuffledDeck(),
+    currentCard: null,
+    history: [],
+  };
+}
+
+function saveState(state) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      deck: state.deck,
+      currentCard: state.currentCard,
+      history: state.history,
+    }));
+  } catch { /* storage full */ }
+}
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'draw': {
+      if (state.deck.length === 0) return state;
+      const newDeck = [...state.deck];
+      const card = newDeck.pop();
+      return {
+        ...state,
+        deck: newDeck,
+        currentCard: card,
+        history: state.currentCard
+          ? [...state.history, state.currentCard]
+          : state.history,
+        lastDrawn: card,
+        prevCard: state.currentCard,
+      };
+    }
+    case 'undo': {
+      if (!state.currentCard) return state;
+      const newHistory = [...state.history];
+      const prevCard = newHistory.pop() || null;
+      return {
+        ...state,
+        deck: [...state.deck, state.currentCard],
+        currentCard: prevCard,
+        history: prevCard !== null ? newHistory : [],
+        lastDrawn: null,
+        prevCard: null,
+      };
+    }
+    case 'shuffle': {
+      const allCards = [...state.deck];
+      if (state.currentCard) allCards.push(state.currentCard);
+      state.history.forEach((c) => allCards.push(c));
+      return {
+        deck: shuffleDeck(allCards),
+        currentCard: null,
+        history: [],
+        lastDrawn: null,
+        prevCard: null,
+      };
+    }
+    case 'reset':
+      return {
+        deck: createShuffledDeck(),
+        currentCard: null,
+        history: [],
+        lastDrawn: null,
+        prevCard: null,
+      };
+    default:
+      return state;
+  }
+}
 
 export function useDeck() {
-  const [deck, setDeck] = useLocalStorage(STORAGE_KEYS.DECK, createShuffledDeck());
-  const [currentCard, setCurrentCard] = useLocalStorage(STORAGE_KEYS.CURRENT_CARD, null);
-  const [history, setHistory] = useLocalStorage(STORAGE_KEYS.HISTORY, []);
+  const [state, dispatch] = useReducer(reducer, null, loadState);
   const [drawKey, setDrawKey] = useState(0);
+  const prevStateRef = useRef(state);
+
+  useEffect(() => {
+    if (state !== prevStateRef.current) {
+      saveState(state);
+      prevStateRef.current = state;
+    }
+  }, [state]);
 
   const draw = useCallback(() => {
-    if (deck.length === 0) return null;
-    const newDeck = [...deck];
-    const card = newDeck.pop();
-
-    if (currentCard) {
-      setHistory((h) => [...h, currentCard]);
-    }
-    setDeck(newDeck);
-    setCurrentCard(card);
+    dispatch({ type: 'draw' });
     setDrawKey((k) => k + 1);
-    return card;
-  }, [deck, currentCard, setDeck, setCurrentCard, setHistory]);
+  }, []);
 
   const undo = useCallback(() => {
-    if (!currentCard) return;
-    // Push current card back onto deck
-    setDeck((d) => [...d, currentCard]);
-    // Restore previous card from history
-    if (history.length > 0) {
-      const newHistory = [...history];
-      const prevCard = newHistory.pop();
-      setHistory(newHistory);
-      setCurrentCard(prevCard);
-    } else {
-      setHistory([]);
-      setCurrentCard(null);
-    }
+    dispatch({ type: 'undo' });
     setDrawKey((k) => k + 1);
-  }, [currentCard, history, setDeck, setCurrentCard, setHistory]);
+  }, []);
 
   const shuffle = useCallback(() => {
-    // Gather all cards back together and reshuffle (like real life)
-    const allCards = [...deck];
-    if (currentCard) allCards.push(currentCard);
-    history.forEach((c) => allCards.push(c));
-    setDeck(shuffleDeck(allCards));
-    setCurrentCard(null);
-    setHistory([]);
+    dispatch({ type: 'shuffle' });
     setDrawKey((k) => k + 1);
-  }, [deck, currentCard, history, setDeck, setCurrentCard, setHistory]);
+  }, []);
 
   const reset = useCallback(() => {
-    // Fresh 52-card deck (like opening a new pack)
-    setDeck(createShuffledDeck());
-    setCurrentCard(null);
-    setHistory([]);
+    dispatch({ type: 'reset' });
     setDrawKey((k) => k + 1);
-  }, [setDeck, setCurrentCard, setHistory]);
+  }, []);
 
   return {
-    deck,
-    currentCard,
-    history,
+    currentCard: state.currentCard,
+    lastDrawn: state.lastDrawn || null,
+    prevCard: state.prevCard || null,
+    history: state.history,
     drawKey,
-    cardsRemaining: deck.length,
+    cardsRemaining: state.deck.length,
     draw,
     undo,
     shuffle,
