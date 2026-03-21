@@ -10,6 +10,8 @@ export default function ActiveRulesList({ rules, onRemove, themeStyles }) {
       <button
         onClick={() => setExpanded(!expanded)}
         style={styles.header}
+        aria-expanded={expanded}
+        aria-label={`Active Rules (${rules.length})`}
       >
         <span style={{ ...themeStyles?.textAccent, fontSize: 14, fontWeight: 600 }}>
           Active Rules ({rules.length})

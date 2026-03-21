@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PlayerSetup } from './TurnTracker.jsx';
 
 export default function SettingsPanel({
@@ -13,15 +13,24 @@ export default function SettingsPanel({
   onClose,
   themeStyles,
 }) {
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
   return (
     <div style={{ ...styles.overlay, ...themeStyles?.overlay }} onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
         style={{ ...styles.modal, ...themeStyles?.modal }}
         onClick={(e) => e.stopPropagation()}
       >
         <div style={styles.header}>
           <span style={{ ...themeStyles?.text, fontSize: 18, fontWeight: 'bold' }}>Settings</span>
-          <button onClick={onClose} style={styles.closeBtn}>×</button>
+          <button onClick={onClose} style={styles.closeBtn} aria-label="Close settings">×</button>
         </div>
 
         <div style={styles.content}>
@@ -74,9 +83,12 @@ function ToggleRow({ label, value, onToggle, themeStyles }) {
       <span style={{ ...themeStyles?.text, fontSize: 14 }}>{label}</span>
       <button
         onClick={onToggle}
+        role="switch"
+        aria-checked={value}
+        aria-label={label}
         style={{
           ...styles.toggle,
-          background: value ? '#148f4b' : 'rgba(128,128,128,0.3)',
+          background: value ? (themeStyles?.toggleActive || '#148f4b') : 'rgba(128,128,128,0.3)',
         }}
       >
         <div style={{

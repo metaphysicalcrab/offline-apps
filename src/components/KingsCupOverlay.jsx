@@ -3,6 +3,7 @@ import { getRuleForCard } from '../game/kingsCupRules.js';
 
 export default function KingsCupOverlay({ card, kingCount, customRules, currentPlayer, onAddRule, themeStyles }) {
   const [ruleInput, setRuleInput] = useState('');
+  const [ruleAdded, setRuleAdded] = useState(false);
 
   if (!card) return null;
 
@@ -15,6 +16,8 @@ export default function KingsCupOverlay({ card, kingCount, customRules, currentP
     if (!text) return;
     onAddRule(text, currentPlayer);
     setRuleInput('');
+    setRuleAdded(true);
+    setTimeout(() => setRuleAdded(false), 1500);
   };
 
   const handleKeyDown = (e) => {
@@ -23,12 +26,15 @@ export default function KingsCupOverlay({ card, kingCount, customRules, currentP
 
   return (
     <div style={styles.container}>
-      <div style={styles.kingCounter}>
+      <div style={styles.kingCounter} aria-label={`${kingCount} of 4 Kings drawn`}>
         {[1, 2, 3, 4].map((n) => (
           <span key={n} style={{ fontSize: 20, opacity: n <= kingCount ? 1 : 0.2 }}>
             👑
           </span>
         ))}
+        <span style={{ ...themeStyles?.textMuted, fontSize: 12, marginLeft: 4 }}>
+          {kingCount}/4
+        </span>
       </div>
 
       {isGameOver ? (
@@ -50,27 +56,36 @@ export default function KingsCupOverlay({ card, kingCount, customRules, currentP
             {rule.desc}
           </div>
           {isJack && onAddRule && (
-            <div style={styles.addRow}>
-              <input
-                type="text"
-                value={ruleInput}
-                onChange={(e) => setRuleInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type the new rule..."
-                style={{ ...themeStyles?.input, flex: 1 }}
-              />
-              <button
-                onClick={handleSubmitRule}
-                disabled={!ruleInput.trim()}
-                style={{
-                  ...styles.addBtn,
-                  ...themeStyles?.buttonPrimary,
-                  opacity: ruleInput.trim() ? 1 : 0.4,
-                }}
-              >
-                +
-              </button>
-            </div>
+            <>
+              <div style={styles.addRow}>
+                <input
+                  type="text"
+                  value={ruleInput}
+                  onChange={(e) => setRuleInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Type the new rule..."
+                  aria-label="New rule text"
+                  style={{ ...themeStyles?.input, flex: 1 }}
+                />
+                <button
+                  onClick={handleSubmitRule}
+                  disabled={!ruleInput.trim()}
+                  aria-label="Add rule"
+                  style={{
+                    ...styles.addBtn,
+                    ...themeStyles?.buttonPrimary,
+                    opacity: ruleInput.trim() ? 1 : 0.4,
+                  }}
+                >
+                  +
+                </button>
+              </div>
+              {ruleAdded && (
+                <div style={{ ...themeStyles?.textAccent, fontSize: 13, fontWeight: 600, animation: 'slideUp 0.2s ease-out' }}>
+                  Rule added!
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

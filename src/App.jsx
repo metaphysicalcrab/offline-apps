@@ -82,12 +82,17 @@ export default function App() {
   return (
     <div style={themeStyles.app}>
       <header style={themeStyles.header}>
-        <GameModeSelector mode={gameMode.mode} setMode={gameMode.setMode} themeStyles={themeStyles} />
+        <GameModeSelector
+          mode={gameMode.mode}
+          setMode={gameMode.setMode}
+          hasActiveState={gameMode.activeRules?.length > 0 || gameMode.streak > 0 || gameMode.kingCount > 0}
+          themeStyles={themeStyles}
+        />
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={toggleTheme} style={styles.iconBtn}>
+          <button onClick={toggleTheme} style={styles.iconBtn} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
             {theme === 'dark' ? '☀️' : '🌙'}
           </button>
-          <button onClick={() => setShowSettings(true)} style={styles.iconBtn}>
+          <button onClick={() => setShowSettings(true)} style={styles.iconBtn} aria-label="Settings">
             ⚙️
           </button>
         </div>
