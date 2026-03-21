@@ -16,6 +16,7 @@ import TurnTracker from './components/TurnTracker.jsx';
 import CardHistory from './components/CardHistory.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import RulesEditor from './components/RulesEditor.jsx';
+import ActiveRulesList from './components/ActiveRulesList.jsx';
 
 export default function App() {
   const { theme, themeStyles, toggleTheme } = useTheme();
@@ -103,12 +104,21 @@ export default function App() {
       <Card card={deck.currentCard} drawKey={deck.drawKey} themeStyles={themeStyles} />
 
       {gameMode.mode === GAME_MODES.KINGS_CUP && (
-        <KingsCupOverlay
-          card={deck.currentCard}
-          kingCount={gameMode.kingCount}
-          customRules={gameMode.customRules}
-          themeStyles={themeStyles}
-        />
+        <>
+          <KingsCupOverlay
+            card={deck.currentCard}
+            kingCount={gameMode.kingCount}
+            customRules={gameMode.customRules}
+            currentPlayer={turns.currentPlayer}
+            onAddRule={gameMode.addActiveRule}
+            themeStyles={themeStyles}
+          />
+          <ActiveRulesList
+            rules={gameMode.activeRules}
+            onRemove={gameMode.removeActiveRule}
+            themeStyles={themeStyles}
+          />
+        </>
       )}
 
       {gameMode.mode === GAME_MODES.HIGH_LOW && (

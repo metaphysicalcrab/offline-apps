@@ -10,6 +10,7 @@ export function useGameMode() {
   const [streak, setStreak] = useLocalStorage(STORAGE_KEYS.HIGH_LOW_STREAK, 0);
   const [bestStreak, setBestStreak] = useLocalStorage(STORAGE_KEYS.HIGH_LOW_BEST, 0);
   const [customRules, setCustomRules] = useLocalStorage(STORAGE_KEYS.RULES, DEFAULT_KINGS_CUP_RULES);
+  const [activeRules, setActiveRules] = useLocalStorage(STORAGE_KEYS.ACTIVE_RULES, []);
 
   const handleKingsCupDraw = useCallback((card) => {
     if (card.rank === 'K') {
@@ -39,10 +40,19 @@ export function useGameMode() {
     }
   }, [streak, bestStreak, setStreak, setBestStreak]);
 
+  const addActiveRule = useCallback((ruleText, createdBy) => {
+    setActiveRules((prev) => [...prev, { text: ruleText, createdBy: createdBy || null, id: Date.now() }]);
+  }, [setActiveRules]);
+
+  const removeActiveRule = useCallback((id) => {
+    setActiveRules((prev) => prev.filter((r) => r.id !== id));
+  }, [setActiveRules]);
+
   const resetModeState = useCallback(() => {
     setKingCount(0);
     setStreak(0);
-  }, [setKingCount, setStreak]);
+    setActiveRules([]);
+  }, [setKingCount, setStreak, setActiveRules]);
 
   const saveRules = useCallback((rules) => {
     setCustomRules(mergeWithDefaults(rules));
@@ -59,6 +69,9 @@ export function useGameMode() {
     streak,
     bestStreak,
     customRules,
+    activeRules,
+    addActiveRule,
+    removeActiveRule,
     handleKingsCupDraw,
     handleHighLowGuess,
     resetModeState,
