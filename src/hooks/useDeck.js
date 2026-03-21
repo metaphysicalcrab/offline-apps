@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useLocalStorage } from './useLocalStorage.js';
-import { createShuffledDeck } from '../game/deck.js';
+import { createShuffledDeck, shuffleDeck } from '../game/deck.js';
 import { STORAGE_KEYS } from '../constants.js';
 
 export function useDeck() {
@@ -41,6 +41,18 @@ export function useDeck() {
   }, [currentCard, history, setDeck, setCurrentCard, setHistory]);
 
   const shuffle = useCallback(() => {
+    // Gather all cards back together and reshuffle (like real life)
+    const allCards = [...deck];
+    if (currentCard) allCards.push(currentCard);
+    history.forEach((c) => allCards.push(c));
+    setDeck(shuffleDeck(allCards));
+    setCurrentCard(null);
+    setHistory([]);
+    setDrawKey((k) => k + 1);
+  }, [deck, currentCard, history, setDeck, setCurrentCard, setHistory]);
+
+  const reset = useCallback(() => {
+    // Fresh 52-card deck (like opening a new pack)
     setDeck(createShuffledDeck());
     setCurrentCard(null);
     setHistory([]);
@@ -56,6 +68,6 @@ export function useDeck() {
     draw,
     undo,
     shuffle,
-    reset: shuffle,
+    reset,
   };
 }
