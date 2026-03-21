@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useLocalStorage } from './useLocalStorage.js';
 import { createShuffledDeck } from '../game/deck.js';
 import { STORAGE_KEYS } from '../constants.js';
@@ -8,43 +8,51 @@ export function useDeck() {
   const [currentCard, setCurrentCard] = useLocalStorage(STORAGE_KEYS.CURRENT_CARD, null);
   const [history, setHistory] = useLocalStorage(STORAGE_KEYS.HISTORY, []);
   const [drawKey, setDrawKey] = useState(0);
+  const drawnCardRef = useRef(null);
 
   const draw = useCallback(() => {
-    if (deck.length === 0) return null;
-    const newDeck = [...deck];
-    const card = newDeck.pop();
-    setDeck(newDeck);
-    if (currentCard) {
-      setHistory((prev) => [...prev, currentCard]);
-    }
-    setCurrentCard(card);
+    let drawn = null;
+    setDeck((prevDeck) => {
+      if (prevDeck.length === 0) return prevDeck;
+      const newDeck = [...prevDeck];
+      drawn = newDeck.pop();
+      drawnCardRef.current = drawn;
+      return newDeck;
+    });
+    if (!drawnCardRef.current) return null;
+    drawn = drawnCardRef.current;
+    setCurrentCard((prev) => {
+      if (prev) {
+        setHistory((h) => [...h, prev]);
+      }
+      return drawn;
+    });
     setDrawKey((k) => k + 1);
-    return card;
-  }, [deck, currentCard, setDeck, setCurrentCard, setHistory]);
+    return drawn;
+  }, [setDeck, setCurrentCard, setHistory]);
 
   const undo = useCallback(() => {
-    if (!currentCard) return;
-    setDeck((prev) => [...prev, currentCard]);
-    if (history.length > 0) {
-      const newHistory = [...history];
-      const prevCard = newHistory.pop();
-      setHistory(newHistory);
-      setCurrentCard(prevCard);
-    } else {
-      setCurrentCard(null);
-    }
+    setCurrentCard((prev) => {
+      if (!prev) return prev;
+      setDeck((d) => [...d, prev]);
+      return null;
+    });
+    setHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const newHistory = [...prev];
+      const lastCard = newHistory.pop();
+      setCurrentCard(lastCard);
+      return newHistory;
+    });
     setDrawKey((k) => k + 1);
-  }, [currentCard, history, setDeck, setCurrentCard, setHistory]);
+  }, [setDeck, setCurrentCard, setHistory]);
 
   const shuffle = useCallback(() => {
-    const allCards = [...deck];
-    if (currentCard) allCards.push(currentCard);
-    history.forEach((c) => allCards.push(c));
     setDeck(createShuffledDeck());
     setCurrentCard(null);
     setHistory([]);
     setDrawKey((k) => k + 1);
-  }, [deck, currentCard, history, setDeck, setCurrentCard, setHistory]);
+  }, [setDeck, setCurrentCard, setHistory]);
 
   const reset = useCallback(() => {
     setDeck(createShuffledDeck());
