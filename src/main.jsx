@@ -40,6 +40,11 @@ async function clearStaleCache() {
 
 clearStaleCache();
 
+// Lock orientation to portrait when possible (PWA / fullscreen)
+try {
+  screen.orientation?.lock?.('portrait').catch(() => {});
+} catch { /* not supported */ }
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <App />

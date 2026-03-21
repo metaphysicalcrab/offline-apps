@@ -7,6 +7,7 @@ import { useAudio } from './hooks/useAudio.js';
 import { useHaptics } from './hooks/useHaptics.js';
 import { useShake } from './hooks/useShake.js';
 import { useTheme } from './hooks/useTheme.js';
+import { useAppearance } from './hooks/useAppearance.js';
 import Card from './components/Card.jsx';
 import DeckControls from './components/DeckControls.jsx';
 import GameModeSelector from './components/GameModeSelector.jsx';
@@ -26,6 +27,7 @@ export default function App() {
   const turns = useTurnTracker();
   const audio = useAudio();
   const haptics = useHaptics();
+  const appearance = useAppearance();
 
   const [showSettings, setShowSettings] = useState(false);
   const [showRules, setShowRules] = useState(false);
@@ -82,7 +84,7 @@ export default function App() {
   }, [deck.reset, gameMode]);
 
   return (
-    <div style={themeStyles.app}>
+    <div style={{ ...themeStyles.app, fontFamily: appearance.fontFamily }}>
       <header style={themeStyles.header}>
         <GameModeSelector
           mode={gameMode.mode}
@@ -111,7 +113,13 @@ export default function App() {
         themeStyles={themeStyles}
       />
 
-      <Card card={deck.currentCard} drawKey={deck.drawKey} themeStyles={themeStyles} />
+      <Card
+        card={deck.currentCard}
+        drawKey={deck.drawKey}
+        themeStyles={themeStyles}
+        cardBackColor={appearance.cardBackColor}
+        cardBackStyle={appearance.cardBackStyle}
+      />
 
       {gameMode.mode === GAME_MODES.KINGS_CUP && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '0 20px', marginBottom: 8, width: '100%' }}>
@@ -172,6 +180,7 @@ export default function App() {
           onEditRules={() => { setShowSettings(false); setShowRules(true); }}
           onClose={() => setShowSettings(false)}
           themeStyles={themeStyles}
+          appearance={appearance}
         />
       )}
 

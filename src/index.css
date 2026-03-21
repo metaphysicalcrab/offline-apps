@@ -69,3 +69,16 @@ input:focus {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 2px;
 }
+
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  #root > div {
+    transform: rotate(-90deg);
+    transform-origin: top left;
+    width: 100vh;
+    height: 100vw;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    overflow-y: auto;
+  }
+}

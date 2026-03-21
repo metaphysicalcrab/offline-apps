@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { PlayerSetup } from './TurnTracker.jsx';
+import { CardBackPreview } from './Card.jsx';
+import { CARD_BACK_COLORS, CARD_BACK_STYLES, FONT_OPTIONS } from '../hooks/useAppearance.js';
 
 export default function SettingsPanel({
   muted, setMuted,
@@ -12,6 +14,7 @@ export default function SettingsPanel({
   onEditRules,
   onClose,
   themeStyles,
+  appearance,
 }) {
   useEffect(() => {
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
@@ -44,6 +47,76 @@ export default function SettingsPanel({
           <ToggleRow label={`Theme: ${theme === 'dark' ? 'Dark' : 'Light'}`} value={theme === 'dark'} onToggle={toggleTheme} themeStyles={themeStyles} />
 
           <div style={styles.divider} />
+
+          {appearance && (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 600, ...themeStyles?.text }}>Appearance</div>
+
+              <div>
+                <div style={{ ...themeStyles?.textMuted, fontSize: 12, marginBottom: 6 }}>Card Back Color</div>
+                <div style={styles.colorRow}>
+                  {CARD_BACK_COLORS.map((c) => (
+                    <button
+                      key={c.value}
+                      onClick={() => appearance.setCardBackColor(c.value)}
+                      aria-label={c.label}
+                      style={{
+                        ...styles.colorSwatch,
+                        background: c.value,
+                        outline: appearance.cardBackColor === c.value ? '2px solid' : '2px solid transparent',
+                        outlineColor: appearance.cardBackColor === c.value ? (themeStyles?.textAccent?.color || '#d4a843') : 'transparent',
+                        outlineOffset: 2,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ ...themeStyles?.textMuted, fontSize: 12, marginBottom: 6 }}>Card Back Style</div>
+                <div style={styles.styleRow}>
+                  {CARD_BACK_STYLES.map((s) => (
+                    <button
+                      key={s.value}
+                      onClick={() => appearance.setCardBackStyle(s.value)}
+                      style={{
+                        ...styles.styleBtn,
+                        ...themeStyles?.button,
+                        ...(appearance.cardBackStyle === s.value ? themeStyles?.modeButtonActive : {}),
+                      }}
+                    >
+                      <div style={{ width: 70, height: 105, overflow: 'hidden' }}>
+                        <CardBackPreview color={appearance.cardBackColor} style={s.value} />
+                      </div>
+                      <span style={{ fontSize: 11 }}>{s.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div style={{ ...themeStyles?.textMuted, fontSize: 12, marginBottom: 6 }}>Font</div>
+                <div style={styles.fontRow}>
+                  {FONT_OPTIONS.map((f) => (
+                    <button
+                      key={f.label}
+                      onClick={() => appearance.setFontFamily(f.value)}
+                      style={{
+                        ...styles.fontBtn,
+                        ...themeStyles?.button,
+                        ...(appearance.fontFamily === f.value ? themeStyles?.modeButtonActive : {}),
+                        fontFamily: f.value,
+                      }}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={styles.divider} />
+            </>
+          )}
 
           <PlayerSetup
             players={players}
@@ -176,5 +249,49 @@ const styles = {
     cursor: 'pointer',
     width: '100%',
     textAlign: 'center',
+  },
+  colorRow: {
+    display: 'flex',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  colorSwatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'outline-color 0.2s',
+  },
+  styleRow: {
+    display: 'flex',
+    gap: 8,
+  },
+  styleBtn: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+    padding: 6,
+    borderRadius: 10,
+    border: 'none',
+    cursor: 'pointer',
+    flex: 1,
+  },
+  fontRow: {
+    display: 'flex',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  fontBtn: {
+    padding: '8px 12px',
+    borderRadius: 10,
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 13,
+    fontWeight: 600,
+    flex: 1,
+    textAlign: 'center',
+    minWidth: 70,
   },
 };
