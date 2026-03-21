@@ -27,57 +27,33 @@ export default function App() {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showRules, setShowRules] = useState(false);
-  const [highLowGuess, setHighLowGuess] = useState(null);
   const [lastOutcome, setLastOutcome] = useState(null);
 
-  const handleShuffle = useCallback(() => {
-    deck.shuffle();
-    audio.playShuffle();
-    haptics.vibrate(HAPTIC_PATTERNS.shuffle);
-    gameMode.resetModeState();
-  }, [deck, audio, haptics, gameMode]);
-
-  useShake(handleShuffle);
-
   const handleDraw = useCallback(() => {
-    const prevCard = deck.currentCard;
-    const card = deck.draw();
-    if (!card) return;
+    const result = deck.draw();
+    if (!result) return;
 
     audio.playFlip();
     haptics.vibrate(HAPTIC_PATTERNS.tap);
     turns.nextTurn();
 
     if (gameMode.mode === GAME_MODES.KINGS_CUP) {
-      gameMode.handleKingsCupDraw(card);
-    } else if (gameMode.mode === GAME_MODES.HIGH_LOW && highLowGuess && prevCard) {
-      const result = gameMode.handleHighLowGuess(highLowGuess, prevCard, card);
-      setLastOutcome(result.outcome);
-      if (result.outcome === 'correct') {
-        audio.playSuccess();
-        haptics.vibrate(HAPTIC_PATTERNS.success);
-      } else {
-        audio.playFail();
-        haptics.vibrate(HAPTIC_PATTERNS.fail);
-      }
-      setHighLowGuess(null);
+      gameMode.handleKingsCupDraw(result.card);
     }
-  }, [deck, audio, haptics, turns, gameMode, highLowGuess]);
+  }, [deck.draw, audio, haptics, turns, gameMode]);
 
   const handleHighLowGuess = useCallback((guess) => {
-    setHighLowGuess(guess);
-    const prevCard = deck.currentCard;
-    const card = deck.draw();
-    if (!card) return;
+    const result = deck.draw();
+    if (!result) return;
 
     audio.playFlip();
     haptics.vibrate(HAPTIC_PATTERNS.tap);
     turns.nextTurn();
 
-    if (prevCard) {
-      const result = gameMode.handleHighLowGuess(guess, prevCard, card);
-      setLastOutcome(result.outcome);
-      if (result.outcome === 'correct') {
+    if (result.prevCard) {
+      const hlResult = gameMode.handleHighLowGuess(guess, result.prevCard, result.card);
+      setLastOutcome(hlResult.outcome);
+      if (hlResult.outcome === 'correct') {
         audio.playSuccess();
         haptics.vibrate(HAPTIC_PATTERNS.success);
       } else {
@@ -85,12 +61,22 @@ export default function App() {
         haptics.vibrate(HAPTIC_PATTERNS.fail);
       }
     }
-  }, [deck, audio, haptics, turns, gameMode]);
+  }, [deck.draw, audio, haptics, turns, gameMode]);
+
+  const handleShuffle = useCallback(() => {
+    deck.shuffle();
+    audio.playShuffle();
+    haptics.vibrate(HAPTIC_PATTERNS.shuffle);
+    gameMode.resetModeState();
+  }, [deck.shuffle, audio, haptics, gameMode]);
+
+  const { shakeEnabled, setShakeEnabled, requestShakePermission } = useShake(handleShuffle);
 
   const handleReset = useCallback(() => {
     deck.reset();
     gameMode.resetModeState();
-  }, [deck, gameMode]);
+    setLastOutcome(null);
+  }, [deck.reset, gameMode]);
 
   return (
     <div style={themeStyles.app}>
@@ -125,7 +111,7 @@ export default function App() {
         />
       )}
 
-      {gameMode.mode === GAME_MODES.HIGH_LOW ? (
+      {gameMode.mode === GAME_MODES.HIGH_LOW && (
         <HighLowControls
           currentCard={deck.currentCard}
           streak={gameMode.streak}
@@ -134,7 +120,7 @@ export default function App() {
           lastOutcome={lastOutcome}
           themeStyles={themeStyles}
         />
-      ) : null}
+      )}
 
       <DeckControls
         cardsRemaining={deck.cardsRemaining}
@@ -154,8 +140,9 @@ export default function App() {
           setMuted={audio.setMuted}
           hapticsEnabled={haptics.hapticsEnabled}
           setHapticsEnabled={haptics.setHapticsEnabled}
-          shakeEnabled={false}
-          setShakeEnabled={() => {}}
+          shakeEnabled={shakeEnabled}
+          setShakeEnabled={setShakeEnabled}
+          requestShakePermission={requestShakePermission}
           theme={theme}
           toggleTheme={toggleTheme}
           players={turns.players}
@@ -188,5 +175,7 @@ const styles = {
     fontSize: 20,
     cursor: 'pointer',
     padding: 4,
+    borderRadius: 8,
+    transition: 'opacity 0.2s',
   },
 };

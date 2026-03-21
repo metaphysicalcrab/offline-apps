@@ -4,15 +4,9 @@ const CARD_WIDTH = 200;
 const CARD_HEIGHT = 300;
 const BORDER_RADIUS = 16;
 
-function CardBack({ style }) {
+function CardBack() {
   return (
-    <div style={{
-      ...styles.face,
-      ...styles.back,
-      ...style,
-      backfaceVisibility: 'hidden',
-      transform: 'rotateY(180deg)',
-    }}>
+    <div style={styles.back}>
       <div style={styles.backPattern}>
         <div style={styles.backInner}>
           <span style={styles.backSymbol}>&#9824;&#9829;</span>
@@ -23,18 +17,13 @@ function CardBack({ style }) {
   );
 }
 
-function CardFace({ card, style }) {
+function CardFace({ card }) {
   const isRed = card.suit === '♥' || card.suit === '♦';
   const color = isRed ? '#c0392b' : '#1a1a2e';
   const isFaceCard = ['J', 'Q', 'K'].includes(card.rank);
 
   return (
-    <div style={{
-      ...styles.face,
-      ...styles.front,
-      ...style,
-      backfaceVisibility: 'hidden',
-    }}>
+    <div style={styles.front}>
       <div style={{ ...styles.cornerTop, color }}>{card.rank}<br />{card.suit}</div>
       <div style={{ ...styles.center, color, fontSize: isFaceCard ? 56 : 72 }}>
         {isFaceCard ? card.rank : card.suit}
@@ -45,15 +34,12 @@ function CardFace({ card, style }) {
 }
 
 export default function Card({ card, drawKey, themeStyles }) {
-  const [phase, setPhase] = useState('idle'); // idle | flipping | visible | tossing
+  const [animating, setAnimating] = useState(false);
 
   useEffect(() => {
-    if (!card) {
-      setPhase('idle');
-      return;
-    }
-    setPhase('flipping');
-    const timer = setTimeout(() => setPhase('visible'), 600);
+    if (!card) return;
+    setAnimating(true);
+    const timer = setTimeout(() => setAnimating(false), 600);
     return () => clearTimeout(timer);
   }, [drawKey]);
 
@@ -68,25 +54,13 @@ export default function Card({ card, drawKey, themeStyles }) {
     );
   }
 
-  const isFlipping = phase === 'flipping';
-  const isTossing = phase === 'tossing';
-
-  const cardStyle = {
-    ...styles.cardWrapper,
-    animation: isFlipping
-      ? 'flipIn 0.6s ease-out forwards'
-      : isTossing
-        ? 'tossOut 0.4s ease-in forwards'
-        : 'none',
-  };
-
   return (
     <div style={{ ...styles.container, ...themeStyles?.cardArea }}>
-      <div style={cardStyle}>
-        <div style={styles.cardInner}>
-          <CardFace card={card} />
-          <CardBack />
-        </div>
+      <div style={{
+        ...styles.cardWrapper,
+        animation: animating ? 'flipIn 0.6s ease-out forwards' : 'none',
+      }}>
+        <CardFace card={card} />
       </div>
     </div>
   );
@@ -99,7 +73,6 @@ const styles = {
     justifyContent: 'center',
     flex: 1,
     minHeight: CARD_HEIGHT + 40,
-    perspective: 1000,
   },
   placeholder: {
     width: CARD_WIDTH,
@@ -115,22 +88,12 @@ const styles = {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     position: 'relative',
-    transformStyle: 'preserve-3d',
-  },
-  cardInner: {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
-    transformStyle: 'preserve-3d',
-  },
-  face: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    borderRadius: BORDER_RADIUS,
-    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
   },
   front: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: BORDER_RADIUS,
+    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
     background: '#fff',
     display: 'flex',
     flexDirection: 'column',
@@ -138,6 +101,10 @@ const styles = {
     padding: 12,
   },
   back: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: BORDER_RADIUS,
+    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
     background: 'linear-gradient(135deg, #1a472a, #0d3320)',
     display: 'flex',
     alignItems: 'center',

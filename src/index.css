@@ -45,6 +45,18 @@ html, body, #root {
   50% { box-shadow: 0 0 30px 10px rgba(231, 76, 60, 0.5); }
 }
 
+button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+button:disabled {
+  cursor: default;
+}
+
+input:focus {
+  box-shadow: 0 0 0 2px rgba(20, 143, 75, 0.4);
+}
+
 .history-scroll::-webkit-scrollbar {
   height: 4px;
 }
