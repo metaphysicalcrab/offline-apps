@@ -1,0 +1,14 @@
+# Dev Framework — Custom merge drivers for .dev/ documentation files
+# These enable intelligent entry-level merging instead of line-level merging.
+# Install merge driver with: dev hooks install (if using dev-framework CLI)
+
+.dev/Changelog.md merge=dev-framework-append
+.dev/Learnings.md merge=dev-framework-append
+.dev/Decisions.md merge=dev-framework-append
+.dev/Proposals.md merge=dev-framework-append
+.dev/Architecture.md merge=dev-framework-sectional
+.dev/CodingStandards.md merge=dev-framework-sectional
+.dev/DesignSystem.md merge=dev-framework-sectional
+.dev/DesignStandards.md merge=dev-framework-sectional
+.dev/Stack.md merge=dev-framework-sectional
+.dev/.summary.md merge=dev-framework-ours

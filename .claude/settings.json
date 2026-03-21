@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat CLAUDE.md"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '\n**STOP — Have you updated `.dev/` documentation?**\n\nBefore finishing this task, verify you have updated the following:\n\n1. **Changelog.md** (ALWAYS required) — Add a session entry with what was done\n2. **Architecture.md** — If you added/changed components, data flow, or directory structure\n3. **Decisions.md** — If you made architectural or technology choices (new DEC- entry)\n4. **Learnings.md** — If you discovered gotchas, bugs, or non-obvious behaviors (new L- entry)\n5. **Stack.md** — If you added/changed dependencies or versions\n6. **Proposals.md** — If you brainstormed or explored speculative ideas\n7. **DesignSystem.md** — If you created new UI components or tokens\n8. **DesignStandards.md** — If you established UX conventions\n9. **Feature docs** — If you added or modified a feature, system, or utility\n\nSee `.dev/CONTRIBUTING.md` for formatting rules.\n\n**Do NOT stop until at least Changelog.md has been updated for this session.**'"
+          }
+        ]
+      }
+    ]
+  }
+}
