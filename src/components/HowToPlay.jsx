@@ -89,6 +89,44 @@ const RULES = {
       },
     ],
   },
+  [GAME_MODES.BLACKJACK]: {
+    title: 'Blackjack',
+    icon: '🃏',
+    sections: [
+      {
+        heading: 'Overview',
+        text: 'Practice casino blackjack with full rules. Beat the dealer by getting closer to 21 without going over. Supports multiplayer across devices!',
+      },
+      {
+        heading: 'Quick start',
+        items: [
+          'Place a bet using the chip buttons',
+          'Tap "Deal" to start the round',
+          'Choose Hit, Stand, Double, Split, or Surrender',
+          'Dealer plays automatically after all players finish',
+          'Winnings are added to your balance',
+        ],
+      },
+      {
+        heading: 'Practice tools',
+        items: [
+          'Toggle hints (💡) to see the optimal play for every hand',
+          'Toggle count (🔢) to practice Hi-Lo card counting',
+          'Open 📊 for the full basic strategy chart',
+          'Open 📖 for detailed rules and casino etiquette',
+        ],
+      },
+      {
+        heading: 'Multiplayer',
+        items: [
+          'Tap "Create Room" to host a game',
+          'Share the room code with friends',
+          'Others tap "Join Room" and enter the code',
+          'Up to 6 players at one table',
+        ],
+      },
+    ],
+  },
 };
 
 export default function HowToPlay({ mode, onClose, themeStyles }) {

@@ -19,6 +19,7 @@ import SettingsPanel from './components/SettingsPanel.jsx';
 import RulesEditor from './components/RulesEditor.jsx';
 import ActiveRulesList from './components/ActiveRulesList.jsx';
 import HowToPlay from './components/HowToPlay.jsx';
+import BlackjackGame from './components/BlackjackGame.jsx';
 
 export default function App() {
   const { theme, themeStyles, toggleTheme } = useTheme();
@@ -105,62 +106,72 @@ export default function App() {
         </div>
       </header>
 
-      <TurnTracker
-        players={turns.players}
-        currentPlayer={turns.currentPlayer}
-        addPlayer={turns.addPlayer}
-        removePlayer={turns.removePlayer}
-        themeStyles={themeStyles}
-      />
-
-      <Card
-        card={deck.currentCard}
-        drawKey={deck.drawKey}
-        themeStyles={themeStyles}
-        cardBackColor={appearance.cardBackColor}
-        cardBackStyle={appearance.cardBackStyle}
-      />
-
-      {gameMode.mode === GAME_MODES.KINGS_CUP && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '0 20px', marginBottom: 8, width: '100%' }}>
-          <KingsCupOverlay
-            card={deck.currentCard}
-            kingCount={gameMode.kingCount}
-            customRules={gameMode.customRules}
-            currentPlayer={turns.currentPlayer}
-            onAddRule={gameMode.addActiveRule}
-            themeStyles={themeStyles}
-          />
-          <ActiveRulesList
-            rules={gameMode.activeRules}
-            onRemove={gameMode.removeActiveRule}
-            themeStyles={themeStyles}
-          />
-        </div>
-      )}
-
-      {gameMode.mode === GAME_MODES.HIGH_LOW && (
-        <HighLowControls
-          currentCard={deck.currentCard}
-          streak={gameMode.streak}
-          bestStreak={gameMode.bestStreak}
-          onGuess={handleHighLowGuess}
-          lastOutcome={lastOutcome}
+      {gameMode.mode === GAME_MODES.BLACKJACK ? (
+        <BlackjackGame
           themeStyles={themeStyles}
+          audio={audio}
+          haptics={haptics}
         />
+      ) : (
+        <>
+          <TurnTracker
+            players={turns.players}
+            currentPlayer={turns.currentPlayer}
+            addPlayer={turns.addPlayer}
+            removePlayer={turns.removePlayer}
+            themeStyles={themeStyles}
+          />
+
+          <Card
+            card={deck.currentCard}
+            drawKey={deck.drawKey}
+            themeStyles={themeStyles}
+            cardBackColor={appearance.cardBackColor}
+            cardBackStyle={appearance.cardBackStyle}
+          />
+
+          {gameMode.mode === GAME_MODES.KINGS_CUP && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '0 20px', marginBottom: 8, width: '100%' }}>
+              <KingsCupOverlay
+                card={deck.currentCard}
+                kingCount={gameMode.kingCount}
+                customRules={gameMode.customRules}
+                currentPlayer={turns.currentPlayer}
+                onAddRule={gameMode.addActiveRule}
+                themeStyles={themeStyles}
+              />
+              <ActiveRulesList
+                rules={gameMode.activeRules}
+                onRemove={gameMode.removeActiveRule}
+                themeStyles={themeStyles}
+              />
+            </div>
+          )}
+
+          {gameMode.mode === GAME_MODES.HIGH_LOW && (
+            <HighLowControls
+              currentCard={deck.currentCard}
+              streak={gameMode.streak}
+              bestStreak={gameMode.bestStreak}
+              onGuess={handleHighLowGuess}
+              lastOutcome={lastOutcome}
+              themeStyles={themeStyles}
+            />
+          )}
+
+          <DeckControls
+            cardsRemaining={deck.cardsRemaining}
+            canUndo={!!deck.currentCard}
+            onDraw={handleDraw}
+            onUndo={deck.undo}
+            onShuffle={handleShuffle}
+            onReset={handleReset}
+            themeStyles={themeStyles}
+          />
+
+          <CardHistory history={deck.history} themeStyles={themeStyles} />
+        </>
       )}
-
-      <DeckControls
-        cardsRemaining={deck.cardsRemaining}
-        canUndo={!!deck.currentCard}
-        onDraw={handleDraw}
-        onUndo={deck.undo}
-        onShuffle={handleShuffle}
-        onReset={handleReset}
-        themeStyles={themeStyles}
-      />
-
-      <CardHistory history={deck.history} themeStyles={themeStyles} />
 
       {showSettings && (
         <SettingsPanel

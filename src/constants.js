@@ -18,6 +18,7 @@ export const GAME_MODES = {
   FREE_DRAW: 'free-draw',
   KINGS_CUP: 'kings-cup',
   HIGH_LOW: 'high-low',
+  BLACKJACK: 'blackjack',
 };
 
 export const STORAGE_KEYS = {
@@ -37,6 +38,10 @@ export const STORAGE_KEYS = {
   CARD_BACK_COLOR: 'card-app-back-color',
   CARD_BACK_STYLE: 'card-app-back-style',
   FONT_FAMILY: 'card-app-font',
+  BLACKJACK_CHIPS: 'card-app-bj-chips',
+  BLACKJACK_STATS: 'card-app-bj-stats',
+  BLACKJACK_SETTINGS: 'card-app-bj-settings',
+  BLACKJACK_LAST_BET: 'card-app-bj-last-bet',
 };
 
 export const AUDIO_PARAMS = {
@@ -52,6 +57,52 @@ export const HAPTIC_PATTERNS = {
   fail: [40, 30, 40],
   shuffle: [10, 20, 10, 20, 10],
 };
+
+export const BLACKJACK_CONFIG = {
+  deckCount: 6,
+  cutCardPercent: 0.75,
+  dealerStandsSoft17: true,
+  blackjackPays: 1.5,
+  doubleAfterSplit: true,
+  resplitLimit: 4,
+  surrenderAllowed: true,
+  insuranceAllowed: true,
+  startingChips: 1000,
+};
+
+export const BLACKJACK_ACTIONS = {
+  HIT: 'hit',
+  STAND: 'stand',
+  DOUBLE: 'double',
+  SPLIT: 'split',
+  SURRENDER: 'surrender',
+  INSURANCE: 'insurance',
+};
+
+export const HAND_STATUS = {
+  PLAYING: 'playing',
+  STAND: 'stand',
+  BUST: 'bust',
+  BLACKJACK: 'blackjack',
+  SURRENDER: 'surrender',
+};
+
+export const GAME_PHASE = {
+  BETTING: 'betting',
+  DEALING: 'dealing',
+  INSURANCE: 'insurance',
+  PLAYER_TURN: 'player_turn',
+  DEALER_TURN: 'dealer_turn',
+  RESOLVING: 'resolving',
+  ROUND_OVER: 'round_over',
+};
+
+export const BLACKJACK_RANK_VALUES = {
+  A: 11, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7,
+  8: 8, 9: 9, 10: 10, J: 10, Q: 10, K: 10,
+};
+
+export const CHIP_DENOMINATIONS = [5, 25, 100, 500];
 
 export const DEFAULT_KINGS_CUP_RULES = {
   A: { title: 'Waterfall', desc: 'Everyone drinks in order. You can\'t stop until the person before you stops.' },

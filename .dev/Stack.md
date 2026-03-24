@@ -17,6 +17,7 @@
 |---------|---------|---------|---------|
 | react | ^18.3.1 | UI framework | No |
 | react-dom | ^18.3.1 | React DOM renderer | No |
+| peerjs | ^1.x | WebRTC for multiplayer (lazy-loaded) | No |
 
 ## Dev Dependencies
 
@@ -31,7 +32,7 @@
 
 | Service | Purpose | Auth Method | Docs |
 |---------|---------|-------------|------|
-| None | Fully offline app | — | — |
+| PeerJS Cloud | WebRTC signaling for multiplayer room connections | None (public) | peerjs.com |
 
 ## Infrastructure
 
