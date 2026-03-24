@@ -25,8 +25,11 @@ function injectAnimationStyles() {
   document.head.appendChild(style);
 }
 
-function MiniCard({ card, faceDown, index, isFlipping }) {
+function MiniCard({ card, faceDown, index, isFlipping, totalCards }) {
   useEffect(injectAnimationStyles, []);
+
+  // Less overlap for 2-3 cards, more overlap for 4+ to keep hand compact
+  const overlap = totalCards <= 3 ? -14 : -22;
 
   if (faceDown) {
     return (
@@ -35,11 +38,11 @@ function MiniCard({ card, faceDown, index, isFlipping }) {
         style={{
           ...cardStyles.card,
           ...cardStyles.cardBack,
-          marginLeft: index > 0 ? -28 : 0,
+          marginLeft: index > 0 ? overlap : 0,
           animation: `bjCardDeal 0.3s ease-out ${index * 0.1}s both`,
         }}
       >
-        <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }}>?</span>
+        <span style={{ fontSize: 16, color: 'rgba(255,255,255,0.3)' }}>?</span>
       </div>
     );
   }
@@ -51,7 +54,7 @@ function MiniCard({ card, faceDown, index, isFlipping }) {
       style={{
         ...cardStyles.card,
         ...cardStyles.cardFace,
-        marginLeft: index > 0 ? -28 : 0,
+        marginLeft: index > 0 ? overlap : 0,
         color: isRed ? '#c0392b' : '#1a1a2e',
         animation: isFlipping
           ? 'bjCardFlip 0.4s ease-in-out'
@@ -128,6 +131,7 @@ export default function BlackjackHand({ hand, isActive, isDealer, hidden, themeS
             card={card}
             faceDown={isDealer && hidden && i === 1}
             index={i}
+            totalCards={cards.length}
             isFlipping={i === flippingIndex}
           />
         ))}
@@ -174,8 +178,8 @@ export default function BlackjackHand({ hand, isActive, isDealer, hidden, themeS
 
 const cardStyles = {
   card: {
-    width: 48,
-    height: 68,
+    width: 56,
+    height: 78,
     borderRadius: 8,
     display: 'flex',
     flexDirection: 'column',
@@ -198,13 +202,14 @@ const cardStyles = {
     border: '2px dashed rgba(255,255,255,0.1)',
   },
   cardRank: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 700,
     lineHeight: 1,
   },
   cardSuit: {
-    fontSize: 14,
+    fontSize: 16,
     lineHeight: 1,
+    marginTop: 2,
   },
 };
 
@@ -233,7 +238,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 68,
+    minHeight: 78,
   },
   infoRow: {
     display: 'flex',
