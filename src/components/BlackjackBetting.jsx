@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { CHIP_DENOMINATIONS } from '../constants.js';
 
 const CHIP_COLORS = {
@@ -8,7 +8,7 @@ const CHIP_COLORS = {
   500: { bg: '#8e44ad', border: '#6c3483', label: 'white' },
 };
 
-function ChipButton({ value, onTap, disabled, themeStyles }) {
+function ChipButton({ value, onTap, disabled }) {
   const colors = CHIP_COLORS[value];
   return (
     <button
@@ -29,31 +29,32 @@ function ChipButton({ value, onTap, disabled, themeStyles }) {
 
 export default function BlackjackBetting({
   players,
-  currentBets,
   onPlaceBet,
   onDeal,
-  onClearBet,
   lastBet,
+  localPlayerIndex = 0,
+  isHost = true,
   themeStyles,
 }) {
-  const player = players[0]; // Single player for now
-  const currentBet = player.hands[0]?.bet || 0;
+  const player = players[localPlayerIndex] || players[0];
+  const currentBet = player?.hands[0]?.bet || 0;
+  const allBetsPlaced = players.every(p => p.hands[0]?.bet > 0);
 
   const addChip = (value) => {
     const newBet = currentBet + value;
     if (newBet <= player.chips + currentBet) {
-      onPlaceBet(0, newBet);
+      onPlaceBet(localPlayerIndex, newBet);
     }
   };
 
   const handleQuickBet = () => {
     if (lastBet > 0 && lastBet <= player.chips) {
-      onPlaceBet(0, lastBet);
+      onPlaceBet(localPlayerIndex, lastBet);
     }
   };
 
   const handleClear = () => {
-    onPlaceBet(0, 0);
+    onPlaceBet(localPlayerIndex, 0);
   };
 
   return (
@@ -74,8 +75,7 @@ export default function BlackjackBetting({
             key={val}
             value={val}
             onTap={addChip}
-            disabled={val > (player.chips - (currentBet > 0 ? 0 : 0)) + currentBet - currentBet || player.chips < val}
-            themeStyles={themeStyles}
+            disabled={player.chips < val}
           />
         ))}
       </div>
@@ -97,19 +97,55 @@ export default function BlackjackBetting({
             Rebet ${lastBet}
           </button>
         )}
-        <button
-          onClick={onDeal}
-          disabled={currentBet === 0}
-          style={{
-            ...styles.dealBtn,
-            ...(currentBet > 0 ? themeStyles?.buttonPrimary : themeStyles?.button),
-            opacity: currentBet === 0 ? 0.4 : 1,
+        {isHost ? (
+          <button
+            onClick={onDeal}
+            disabled={!allBetsPlaced}
+            style={{
+              ...styles.dealBtn,
+              ...(allBetsPlaced ? themeStyles?.buttonPrimary : themeStyles?.button),
+              opacity: allBetsPlaced ? 1 : 0.4,
+              flex: 1,
+            }}
+          >
+            {allBetsPlaced ? 'Deal' : 'Waiting for bets...'}
+          </button>
+        ) : (
+          <div style={{
+            ...themeStyles?.textMuted,
+            fontSize: 13,
+            textAlign: 'center',
             flex: 1,
-          }}
-        >
-          Deal
-        </button>
+            padding: '14px 0',
+          }}>
+            {currentBet > 0 ? 'Waiting for host to deal...' : 'Place your bet'}
+          </div>
+        )}
       </div>
+
+      {/* Player bet status (multiplayer) */}
+      {players.length > 1 && (
+        <div style={styles.betStatusRow}>
+          {players.map((p, i) => (
+            <div key={i} style={{
+              ...styles.betStatusBadge,
+              background: p.hands[0]?.bet > 0 ? 'rgba(39,174,96,0.1)' : 'rgba(255,255,255,0.05)',
+              border: p.hands[0]?.bet > 0
+                ? '1px solid rgba(39,174,96,0.3)'
+                : '1px solid rgba(255,255,255,0.1)',
+            }}>
+              <span style={{ ...themeStyles?.text, fontSize: 11 }}>{p.name}</span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: p.hands[0]?.bet > 0 ? '#27ae60' : '#95a5a6',
+              }}>
+                {p.hands[0]?.bet > 0 ? `$${p.hands[0].bet}` : '...'}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div style={{ ...themeStyles?.textMuted, fontSize: 12, textAlign: 'center' }}>
         Balance: ${player.chips}
@@ -178,5 +214,20 @@ const styles = {
     fontWeight: 700,
     cursor: 'pointer',
     transition: 'opacity 0.2s',
+  },
+  betStatusRow: {
+    display: 'flex',
+    gap: 6,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  betStatusBadge: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 2,
+    padding: '4px 10px',
+    borderRadius: 8,
+    minWidth: 60,
   },
 };

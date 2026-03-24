@@ -18,6 +18,7 @@ function createInitialState(config) {
     dealer: { cards: [], hidden: true },
     players: [{
       name: 'You',
+      id: null,
       chips: config.startingChips,
       hands: [{ cards: [], bet: 0, status: HAND_STATUS.PLAYING, isDoubled: false, insuranceBet: 0 }],
       activeHandIndex: 0,
@@ -377,15 +378,23 @@ function reducer(state, action) {
       return createInitialState(state.config);
     }
 
+    case 'SYNC_STATE': {
+      // Guest receives full state from host — replace everything except config
+      return { ...action.state, config: state.config };
+    }
+
     case 'ADD_PLAYER': {
       if (state.phase !== GAME_PHASE.BETTING) return state;
-      const { name } = action;
+      const { name, id } = action;
       if (state.players.length >= 6) return state;
-      if (state.players.some(p => p.name === name)) return state;
+      // Deduplicate by id (multiplayer) or name (solo)
+      if (id && state.players.some(p => p.id === id)) return state;
+      if (!id && state.players.some(p => p.name === name)) return state;
       return {
         ...state,
         players: [...state.players, {
           name,
+          id: id || null,
           chips: state.config.startingChips,
           hands: [{ cards: [], bet: 0, status: HAND_STATUS.PLAYING, isDoubled: false, insuranceBet: 0 }],
           activeHandIndex: 0,
@@ -396,6 +405,13 @@ function reducer(state, action) {
     case 'REMOVE_PLAYER': {
       if (state.phase !== GAME_PHASE.BETTING) return state;
       if (state.players.length <= 1) return state;
+      // Support removal by id (multiplayer) or by index (solo)
+      if (action.id) {
+        return {
+          ...state,
+          players: state.players.filter(p => p.id !== action.id),
+        };
+      }
       return {
         ...state,
         players: state.players.filter((_, i) => i !== action.playerIndex),
@@ -512,8 +528,14 @@ export function useBlackjack() {
   const declineInsurance = useCallback(() => dispatch({ type: 'DECLINE_INSURANCE' }), []);
   const newRound = useCallback(() => dispatch({ type: 'NEW_ROUND' }), []);
   const reset = useCallback(() => dispatch({ type: 'RESET' }), []);
-  const addPlayer = useCallback((name) => dispatch({ type: 'ADD_PLAYER', name }), []);
-  const removePlayer = useCallback((idx) => dispatch({ type: 'REMOVE_PLAYER', playerIndex: idx }), []);
+  const addPlayer = useCallback((name, id) => dispatch({ type: 'ADD_PLAYER', name, id }), []);
+  const removePlayer = useCallback((idxOrId) => {
+    if (typeof idxOrId === 'string') {
+      dispatch({ type: 'REMOVE_PLAYER', id: idxOrId });
+    } else {
+      dispatch({ type: 'REMOVE_PLAYER', playerIndex: idxOrId });
+    }
+  }, []);
 
   // Counting helpers
   const runningCount = state.dealtCards.reduce((c, card) => c + getHiLoValue(card), 0);
@@ -522,6 +544,7 @@ export function useBlackjack() {
 
   return {
     ...state,
+    dispatch,
     placeBet,
     deal,
     hit,

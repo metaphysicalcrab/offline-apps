@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function BlackjackLobby({
   multiplayer,
@@ -6,6 +6,12 @@ export default function BlackjackLobby({
   onStartMultiplayer,
   themeStyles,
 }) {
+  // Guest: auto-transition when host starts the game
+  useEffect(() => {
+    if (!multiplayer.isHost && multiplayer.gameState) {
+      onStartMultiplayer({ isHost: false });
+    }
+  }, [multiplayer.gameState, multiplayer.isHost]);
   const [mode, setMode] = useState(null); // null, 'create', 'join'
   const [playerName, setPlayerName] = useState('');
   const [joinCode, setJoinCode] = useState('');
@@ -63,11 +69,16 @@ export default function BlackjackLobby({
           <div style={styles.actions}>
             {multiplayer.isHost && multiplayer.players.length >= 1 && (
               <button
-                onClick={() => onStartMultiplayer()}
+                onClick={() => onStartMultiplayer({ isHost: true })}
                 style={{ ...styles.btn, ...themeStyles?.buttonPrimary, flex: 1 }}
               >
                 Start Game
               </button>
+            )}
+            {!multiplayer.isHost && (
+              <div style={{ ...themeStyles?.textMuted, fontSize: 13, textAlign: 'center', flex: 1, padding: '12px 0' }}>
+                Waiting for host to start...
+              </div>
             )}
             <button
               onClick={multiplayer.leaveRoom}

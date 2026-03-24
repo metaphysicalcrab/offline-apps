@@ -19,6 +19,18 @@ TEMPLATE — Copy for each new decision:
 - **Related:** Links to relevant learnings, architecture sections, or other decisions.
 -->
 
+## DEC-004 — Host-Authoritative State Sync for Multiplayer
+- **Date:** 2026-03-24
+- **Status:** Accepted
+- **Context:** Need to sync blackjack game state across devices connected via PeerJS WebRTC.
+- **Options Considered:**
+  1. **Host-authoritative (full state broadcast)** — Pros: Simple, no desync possible, host validates all actions / Cons: More bandwidth (full state each update), single point of failure
+  2. **Action replay (broadcast actions only)** — Pros: Less bandwidth / Cons: Desync risk, harder to debug, need deterministic random
+  3. **CRDT / eventual consistency** — Pros: Resilient to network issues / Cons: Massive overkill for a turn-based game
+- **Decision:** Host-authoritative with full state broadcast. The host runs the `useBlackjack` reducer as source of truth. Guests send actions to host, host dispatches locally and broadcasts the resulting state via `SYNC_STATE`. Guests replace their local state wholesale.
+- **Consequences:** If host disconnects, game ends for all players (acceptable for casual PWA). State payloads include the shoe array (~300 cards) which is larger than necessary but simplifies the protocol. Guest actions have slight network latency but blackjack is turn-based so this is imperceptible.
+- **Related:** DEC-002 (PeerJS choice), DEC-003 (lobby pattern)
+
 ## DEC-003 — Blackjack Lobby Pattern for Mode Entry
 - **Date:** 2026-03-24
 - **Status:** Accepted

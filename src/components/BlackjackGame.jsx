@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { GAME_PHASE, BLACKJACK_ACTIONS, HAND_STATUS } from '../constants.js';
 import { useBlackjack } from '../hooks/useBlackjack.js';
 import { useMultiplayer } from '../hooks/useMultiplayer.js';
@@ -12,6 +12,22 @@ import BlackjackRules from './BlackjackRules.jsx';
 import BlackjackStrategy from './BlackjackStrategy.jsx';
 import BlackjackLobby from './BlackjackLobby.jsx';
 
+function getSerializableState(game) {
+  return {
+    shoe: game.shoe,
+    phase: game.phase,
+    dealer: game.dealer,
+    players: game.players,
+    currentPlayerIndex: game.currentPlayerIndex,
+    dealtCards: game.dealtCards,
+    results: game.results,
+    message: game.message,
+    config: game.config,
+  };
+}
+
+const TURN_TIMEOUT_MS = 30000;
+
 export default function BlackjackGame({ themeStyles, audio, haptics }) {
   const game = useBlackjack();
   const multiplayer = useMultiplayer();
@@ -20,10 +36,120 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
   const [showRules, setShowRules] = useState(false);
   const [showStrategy, setShowStrategy] = useState(false);
   const [inLobby, setInLobby] = useState(true);
+  const [isMultiplayer, setIsMultiplayer] = useState(false);
+  const [localPlayerId, setLocalPlayerId] = useState(null);
+  const [turnTimeLeft, setTurnTimeLeft] = useState(null);
 
+  // Refs for stable access in callbacks
+  const gameRef = useRef(game);
+  gameRef.current = game;
+
+  // Derived state
+  const localPlayerIndex = isMultiplayer
+    ? game.players.findIndex(p => p.id === localPlayerId)
+    : 0;
   const currentPlayer = game.players[game.currentPlayerIndex];
   const activeHand = currentPlayer?.hands[currentPlayer.activeHandIndex];
   const isPlayerTurn = game.phase === GAME_PHASE.PLAYER_TURN;
+  const isLocalPlayerTurn = isPlayerTurn && game.currentPlayerIndex === localPlayerIndex;
+  const isHost = !isMultiplayer || multiplayer.isHost;
+
+  // --- Host: broadcast game state on changes ---
+  useEffect(() => {
+    if (!isMultiplayer || !multiplayer.isHost) return;
+    multiplayer.broadcastGameState(getSerializableState(game));
+  }, [game.phase, game.currentPlayerIndex, game.players, game.dealer, game.results, isMultiplayer, multiplayer.isHost]);
+
+  // --- Host: handle remote player actions ---
+  useEffect(() => {
+    if (!isMultiplayer || !multiplayer.isHost) return;
+    multiplayer.setOnAction((action, peerId) => {
+      const g = gameRef.current;
+      const playerIndex = g.players.findIndex(p => p.id === peerId);
+      if (playerIndex === -1) return;
+
+      // Betting phase: any player can bet
+      if (action.type === 'PLACE_BET') {
+        g.placeBet(playerIndex, action.amount);
+        return;
+      }
+
+      if (action.type === 'TAKE_INSURANCE') {
+        g.takeInsurance();
+        return;
+      }
+      if (action.type === 'DECLINE_INSURANCE') {
+        g.declineInsurance();
+        return;
+      }
+
+      // Player turn: validate it's this player's turn
+      if (g.phase === GAME_PHASE.PLAYER_TURN && playerIndex !== g.currentPlayerIndex) return;
+      const hi = g.players[playerIndex].activeHandIndex;
+
+      switch (action.type) {
+        case 'HIT': g.hit(playerIndex, hi); break;
+        case 'STAND': g.stand(playerIndex, hi); break;
+        case 'DOUBLE': g.double(playerIndex, hi); break;
+        case 'SPLIT': g.split(playerIndex, hi); break;
+        case 'SURRENDER': g.surrender(playerIndex, hi); break;
+      }
+    });
+  }, [isMultiplayer, multiplayer.isHost]);
+
+  // --- Host: sync multiplayer player list to game state ---
+  useEffect(() => {
+    if (!isMultiplayer || !multiplayer.isHost || game.phase !== GAME_PHASE.BETTING) return;
+
+    // Add new remote players
+    for (const mp of multiplayer.players) {
+      if (!mp.isHost && !game.players.some(p => p.id === mp.id)) {
+        game.addPlayer(mp.name, mp.id);
+      }
+    }
+    // Remove disconnected players
+    for (const gp of game.players) {
+      if (gp.id && gp.id !== 'host' && !multiplayer.players.some(mp => mp.id === gp.id)) {
+        game.removePlayer(gp.id);
+      }
+    }
+  }, [multiplayer.players, isMultiplayer, multiplayer.isHost, game.phase]);
+
+  // --- Guest: sync state from host ---
+  useEffect(() => {
+    if (!isMultiplayer || multiplayer.isHost || !multiplayer.gameState) return;
+    game.dispatch({ type: 'SYNC_STATE', state: multiplayer.gameState });
+  }, [multiplayer.gameState, isMultiplayer, multiplayer.isHost]);
+
+  // --- Multiplayer turn timeout (host only) ---
+  useEffect(() => {
+    if (!isMultiplayer || !multiplayer.isHost || !isPlayerTurn) {
+      setTurnTimeLeft(null);
+      return;
+    }
+
+    setTurnTimeLeft(TURN_TIMEOUT_MS / 1000);
+    const interval = setInterval(() => {
+      setTurnTimeLeft(prev => {
+        if (prev === null || prev <= 1) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+
+    const timeout = setTimeout(() => {
+      const g = gameRef.current;
+      if (g.phase === GAME_PHASE.PLAYER_TURN) {
+        const pi = g.currentPlayerIndex;
+        const hi = g.players[pi].activeHandIndex;
+        g.stand(pi, hi);
+      }
+    }, TURN_TIMEOUT_MS);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [game.currentPlayerIndex, game.phase, isMultiplayer, multiplayer.isHost, isPlayerTurn]);
 
   // Get available actions for current hand
   const availableActions = isPlayerTurn && activeHand
@@ -45,6 +171,13 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
     : null;
 
   const handleAction = useCallback((action) => {
+    // Guest: send to host
+    if (isMultiplayer && !multiplayer.isHost) {
+      multiplayer.sendAction({ type: action.toUpperCase() });
+      return;
+    }
+
+    // Host / solo: dispatch locally
     const pi = game.currentPlayerIndex;
     const hi = currentPlayer.activeHandIndex;
 
@@ -68,12 +201,82 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
         game.surrender(pi, hi);
         break;
     }
-  }, [game, currentPlayer, audio]);
+  }, [game, currentPlayer, audio, isMultiplayer, multiplayer]);
+
+  const handlePlaceBet = useCallback((playerIndex, amount) => {
+    if (isMultiplayer && !multiplayer.isHost) {
+      multiplayer.sendAction({ type: 'PLACE_BET', amount });
+      return;
+    }
+    game.placeBet(playerIndex, amount);
+  }, [game, isMultiplayer, multiplayer]);
+
+  const handleInsurance = useCallback((accept) => {
+    if (isMultiplayer && !multiplayer.isHost) {
+      multiplayer.sendAction({ type: accept ? 'TAKE_INSURANCE' : 'DECLINE_INSURANCE' });
+      return;
+    }
+    if (accept) game.takeInsurance();
+    else game.declineInsurance();
+  }, [game, isMultiplayer, multiplayer]);
 
   const handleDeal = useCallback(() => {
     game.deal();
     audio?.playFlip();
   }, [game, audio]);
+
+  const handleStartSolo = useCallback(() => {
+    setIsMultiplayer(false);
+    setLocalPlayerId(null);
+    setInLobby(false);
+  }, []);
+
+  const handleStartMultiplayer = useCallback(({ isHost: startAsHost }) => {
+    setIsMultiplayer(true);
+
+    if (startAsHost) {
+      setLocalPlayerId('host');
+      // Tag player 0 as host
+      game.players[0].id = 'host';
+      // Add already-connected remote players
+      multiplayer.players.forEach(p => {
+        if (!p.isHost) game.addPlayer(p.name, p.id);
+      });
+      // Broadcast initial state to guests
+      setTimeout(() => {
+        multiplayer.broadcastGameState(getSerializableState(gameRef.current));
+      }, 100);
+    } else {
+      // Guest: localPlayerId is their peer connection id
+      // We'll find it from the game state once synced
+      setLocalPlayerId(null);
+    }
+
+    setInLobby(false);
+  }, [game, multiplayer]);
+
+  // Guest: figure out localPlayerId from synced state
+  useEffect(() => {
+    if (!isMultiplayer || multiplayer.isHost || localPlayerId) return;
+    // Find our player by matching multiplayer player list
+    const myPeerName = multiplayer.players.find(p => !p.isHost && p.id)?.id;
+    // On PeerJS the guest's peer id is in each connection
+    // The host stores our peer id as player.id in game state
+    // We need to check all players for one that matches a non-host multiplayer player
+    if (myPeerName) {
+      setLocalPlayerId(myPeerName);
+    }
+  }, [isMultiplayer, multiplayer.isHost, localPlayerId, multiplayer.players, game.players]);
+
+  const handleLeaveTable = useCallback(() => {
+    if (game.phase !== GAME_PHASE.BETTING || confirm('Leave the table?')) {
+      game.reset();
+      multiplayer.leaveRoom();
+      setIsMultiplayer(false);
+      setLocalPlayerId(null);
+      setInLobby(true);
+    }
+  }, [game, multiplayer]);
 
   const showNewShoe = needsNewShoe(game.shoe, game.config.deckCount, game.config.cutCardPercent);
 
@@ -81,12 +284,14 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
     return (
       <BlackjackLobby
         multiplayer={multiplayer}
-        onStartSolo={() => setInLobby(false)}
-        onStartMultiplayer={() => setInLobby(false)}
+        onStartSolo={handleStartSolo}
+        onStartMultiplayer={handleStartMultiplayer}
         themeStyles={themeStyles}
       />
     );
   }
+
+  const localPlayer = game.players[localPlayerIndex] || game.players[0];
 
   return (
     <div style={styles.container}>
@@ -94,13 +299,7 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
       <div style={styles.topBar}>
         <div style={styles.topBarLeft}>
           <button
-            onClick={() => {
-              if (game.phase !== GAME_PHASE.BETTING || confirm('Leave the table?')) {
-                game.reset();
-                multiplayer.leaveRoom();
-                setInLobby(true);
-              }
-            }}
+            onClick={handleLeaveTable}
             style={styles.iconBtn}
             aria-label="Back to lobby"
           >
@@ -141,6 +340,51 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
         </div>
       </div>
 
+      {/* Connection status bar (multiplayer only) */}
+      {isMultiplayer && (
+        <div style={styles.connectionBar}>
+          <span style={{
+            display: 'inline-block',
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: multiplayer.isConnected ? '#27ae60' : '#e74c3c',
+          }} />
+          <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
+            {multiplayer.isConnected
+              ? `Room: ${multiplayer.roomCode}`
+              : 'Disconnected'}
+          </span>
+          <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
+            {multiplayer.players.length} player{multiplayer.players.length !== 1 ? 's' : ''}
+          </span>
+          {isPlayerTurn && isMultiplayer && turnTimeLeft !== null && (
+            <span style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: turnTimeLeft <= 10 ? '#e74c3c' : '#f39c12',
+            }}>
+              {turnTimeLeft}s
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Multiplayer error overlay */}
+      {isMultiplayer && multiplayer.error && !multiplayer.isConnected && (
+        <div style={styles.errorOverlay}>
+          <div style={{ ...themeStyles?.text, fontSize: 14, fontWeight: 600, textAlign: 'center' }}>
+            {multiplayer.error}
+          </div>
+          <button
+            onClick={handleLeaveTable}
+            style={{ ...styles.insuranceBtn, ...themeStyles?.button, marginTop: 8 }}
+          >
+            Return to Lobby
+          </button>
+        </div>
+      )}
+
       {/* Running count display */}
       {showCount && (
         <div style={styles.countBar}>
@@ -174,17 +418,17 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
             Dealer shows Ace — Insurance?
           </div>
           <div style={{ ...themeStyles?.textMuted, fontSize: 12, textAlign: 'center' }}>
-            Cost: ${Math.floor(currentPlayer.hands[0].bet / 2)} (pays 2:1 if dealer has blackjack)
+            Cost: ${Math.floor(localPlayer.hands[0].bet / 2)} (pays 2:1 if dealer has blackjack)
           </div>
           <div style={styles.insuranceActions}>
             <button
-              onClick={game.declineInsurance}
+              onClick={() => handleInsurance(false)}
               style={{ ...styles.insuranceBtn, ...themeStyles?.button }}
             >
               No Thanks
             </button>
             <button
-              onClick={game.takeInsurance}
+              onClick={() => handleInsurance(true)}
               style={{ ...styles.insuranceBtn, ...themeStyles?.buttonPrimary }}
             >
               Take Insurance
@@ -201,12 +445,16 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
       {/* Player hands */}
       <div style={styles.playersArea}>
         {game.players.map((player, pi) => (
-          <div key={pi} style={styles.playerSection}>
-            {player.hands.length > 1 && (
-              <div style={{ ...themeStyles?.textMuted, fontSize: 11, textAlign: 'center' }}>
-                {player.name} — Hand {currentPlayer.activeHandIndex + 1}/{player.hands.length}
-              </div>
-            )}
+          <div key={pi} style={{
+            ...styles.playerSection,
+            ...(isMultiplayer && pi === localPlayerIndex ? styles.localPlayerSection : {}),
+          }}>
+            <div style={{ ...themeStyles?.textMuted, fontSize: 11, textAlign: 'center' }}>
+              {player.name}
+              {isMultiplayer && pi === localPlayerIndex ? ' (You)' : ''}
+              {player.hands.length > 1 ? ` — Hand ${player.activeHandIndex + 1}/${player.hands.length}` : ''}
+              {isMultiplayer && <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>${player.chips}</span>}
+            </div>
             <div style={styles.handsRow}>
               {player.hands.map((hand, hi) => (
                 <BlackjackHand
@@ -214,7 +462,7 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
                   hand={hand}
                   isActive={isPlayerTurn && pi === game.currentPlayerIndex && hi === player.activeHandIndex}
                   themeStyles={themeStyles}
-                  label={player.hands.length > 1 ? `Hand ${hi + 1}` : player.name}
+                  label={player.hands.length > 1 ? `Hand ${hi + 1}` : null}
                   handIndex={hi}
                 />
               ))}
@@ -227,15 +475,17 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
       {game.phase === GAME_PHASE.BETTING && (
         <BlackjackBetting
           players={game.players}
-          onPlaceBet={game.placeBet}
+          onPlaceBet={handlePlaceBet}
           onDeal={handleDeal}
           lastBet={game.lastBet}
+          localPlayerIndex={localPlayerIndex >= 0 ? localPlayerIndex : 0}
+          isHost={isHost}
           themeStyles={themeStyles}
         />
       )}
 
-      {/* Player controls */}
-      {isPlayerTurn && availableActions.length > 0 && (
+      {/* Player controls — only show when it's the local player's turn */}
+      {isLocalPlayerTurn && availableActions.length > 0 && (
         <BlackjackControls
           availableActions={availableActions}
           onAction={handleAction}
@@ -243,6 +493,15 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
           showHint={showHints}
           themeStyles={themeStyles}
         />
+      )}
+
+      {/* Waiting for other player (multiplayer) */}
+      {isPlayerTurn && !isLocalPlayerTurn && isMultiplayer && (
+        <div style={{ textAlign: 'center', padding: 16 }}>
+          <span style={{ ...themeStyles?.textMuted, fontSize: 14 }}>
+            Waiting for {game.players[game.currentPlayerIndex]?.name}...
+          </span>
+        </div>
       )}
 
       {/* Dealer playing indicator */}
@@ -258,7 +517,7 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
       {game.phase === GAME_PHASE.ROUND_OVER && (
         <BlackjackResults
           results={game.results}
-          onNewRound={game.newRound}
+          onNewRound={isHost ? game.newRound : undefined}
           showNewShoe={showNewShoe}
           themeStyles={themeStyles}
         />
@@ -342,6 +601,26 @@ const styles = {
     boxShadow: '0 0 0 1px rgba(241,196,0,0.4)',
     background: 'rgba(241,196,0,0.1)',
   },
+  connectionBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: '4px 12px',
+    background: 'rgba(0,0,0,0.1)',
+    borderRadius: 8,
+    margin: '0 12px 4px',
+  },
+  errorOverlay: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    padding: '16px 20px',
+    margin: '0 16px',
+    background: 'rgba(231,76,60,0.1)',
+    borderRadius: 12,
+    border: '1px solid rgba(231,76,60,0.3)',
+  },
   countBar: {
     display: 'flex',
     justifyContent: 'center',
@@ -363,12 +642,19 @@ const styles = {
     alignItems: 'center',
     padding: '4px 0',
     flex: 1,
+    gap: 8,
   },
   playerSection: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     gap: 4,
+    width: '100%',
+  },
+  localPlayerSection: {
+    background: 'rgba(39,174,96,0.05)',
+    borderRadius: 12,
+    padding: '4px 8px',
   },
   handsRow: {
     display: 'flex',

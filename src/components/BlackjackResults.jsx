@@ -43,12 +43,18 @@ export default function BlackjackResults({ results, onNewRound, onNewShoe, showN
       ))}
 
       <div style={styles.actions}>
-        <button
-          onClick={onNewRound}
-          style={{ ...styles.btn, ...themeStyles?.buttonPrimary }}
-        >
-          {showNewShoe ? 'New Shoe & Deal' : 'Next Hand'}
-        </button>
+        {onNewRound ? (
+          <button
+            onClick={onNewRound}
+            style={{ ...styles.btn, ...themeStyles?.buttonPrimary }}
+          >
+            {showNewShoe ? 'New Shoe & Deal' : 'Next Hand'}
+          </button>
+        ) : (
+          <div style={{ ...styles.btn, textAlign: 'center', opacity: 0.6, fontSize: 14 }}>
+            Waiting for host...
+          </div>
+        )}
       </div>
     </div>
   );

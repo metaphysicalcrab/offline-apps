@@ -1,11 +1,44 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { calculateHand, getHandDisplayTotal } from '../game/blackjack.js';
 import { HAND_STATUS } from '../constants.js';
 
-function MiniCard({ card, faceDown, themeStyles, index }) {
+// Inject keyframes once
+let stylesInjected = false;
+function injectAnimationStyles() {
+  if (stylesInjected || typeof document === 'undefined') return;
+  stylesInjected = true;
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes bjCardDeal {
+      from { opacity: 0; transform: translateY(-20px) scale(0.9); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes bjCardFlip {
+      0% { transform: rotateY(0deg); }
+      50% { transform: rotateY(90deg); }
+      100% { transform: rotateY(0deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bj-card-animate { animation: none !important; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function MiniCard({ card, faceDown, index, isFlipping }) {
+  useEffect(injectAnimationStyles, []);
+
   if (faceDown) {
     return (
-      <div style={{ ...styles.card, ...styles.cardBack, marginLeft: index > 0 ? -28 : 0 }}>
+      <div
+        className="bj-card-animate"
+        style={{
+          ...cardStyles.card,
+          ...cardStyles.cardBack,
+          marginLeft: index > 0 ? -28 : 0,
+          animation: `bjCardDeal 0.3s ease-out ${index * 0.1}s both`,
+        }}
+      >
         <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.3)' }}>?</span>
       </div>
     );
@@ -13,14 +46,20 @@ function MiniCard({ card, faceDown, themeStyles, index }) {
 
   const isRed = card.suit === '♥' || card.suit === '♦';
   return (
-    <div style={{
-      ...styles.card,
-      ...styles.cardFace,
-      marginLeft: index > 0 ? -28 : 0,
-      color: isRed ? '#c0392b' : '#1a1a2e',
-    }}>
-      <span style={styles.cardRank}>{card.rank}</span>
-      <span style={styles.cardSuit}>{card.suit}</span>
+    <div
+      className="bj-card-animate"
+      style={{
+        ...cardStyles.card,
+        ...cardStyles.cardFace,
+        marginLeft: index > 0 ? -28 : 0,
+        color: isRed ? '#c0392b' : '#1a1a2e',
+        animation: isFlipping
+          ? 'bjCardFlip 0.4s ease-in-out'
+          : `bjCardDeal 0.3s ease-out ${index * 0.1}s both`,
+      }}
+    >
+      <span style={cardStyles.cardRank}>{card.rank}</span>
+      <span style={cardStyles.cardSuit}>{card.suit}</span>
     </div>
   );
 }
@@ -29,6 +68,20 @@ export default function BlackjackHand({ hand, isActive, isDealer, hidden, themeS
   const cards = hand.cards || [];
   const showTotal = cards.length > 0 && (!isDealer || !hidden);
   const totalDisplay = showTotal ? getHandDisplayTotal(isDealer && hidden ? [cards[0]] : cards) : '';
+
+  // Track hidden -> revealed transition for flip animation
+  const prevHiddenRef = useRef(hidden);
+  const [flippingIndex, setFlippingIndex] = useState(null);
+
+  useEffect(() => {
+    if (prevHiddenRef.current === true && hidden === false && isDealer) {
+      // Dealer hole card just revealed — animate flip on card index 1
+      setFlippingIndex(1);
+      const timer = setTimeout(() => setFlippingIndex(null), 400);
+      return () => clearTimeout(timer);
+    }
+    prevHiddenRef.current = hidden;
+  }, [hidden, isDealer]);
 
   const statusLabel = {
     [HAND_STATUS.BUST]: 'BUST',
@@ -74,12 +127,12 @@ export default function BlackjackHand({ hand, isActive, isDealer, hidden, themeS
             key={card.id ?? i}
             card={card}
             faceDown={isDealer && hidden && i === 1}
-            themeStyles={themeStyles}
             index={i}
+            isFlipping={i === flippingIndex}
           />
         ))}
         {cards.length === 0 && (
-          <div style={{ ...styles.card, ...styles.cardEmpty }}>
+          <div style={{ ...cardStyles.card, ...cardStyles.cardEmpty }}>
             <span style={{ fontSize: 18, opacity: 0.2 }}>?</span>
           </div>
         )}
@@ -119,39 +172,7 @@ export default function BlackjackHand({ hand, isActive, isDealer, hidden, themeS
   );
 }
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 4,
-    padding: '8px 4px',
-    borderRadius: 12,
-    transition: 'all 0.2s',
-    minWidth: 80,
-  },
-  active: {
-    background: 'rgba(241,196,0,0.08)',
-    boxShadow: '0 0 0 2px rgba(241,196,0,0.3)',
-  },
-  labelRow: {
-    display: 'flex',
-    gap: 8,
-    alignItems: 'center',
-    fontSize: 11,
-  },
-  cardsRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 68,
-  },
-  infoRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-    minHeight: 22,
-  },
+const cardStyles = {
   card: {
     width: 48,
     height: 68,
@@ -184,6 +205,41 @@ const styles = {
   cardSuit: {
     fontSize: 14,
     lineHeight: 1,
+  },
+};
+
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 4,
+    padding: '8px 4px',
+    borderRadius: 12,
+    transition: 'all 0.2s',
+    minWidth: 80,
+  },
+  active: {
+    background: 'rgba(241,196,0,0.08)',
+    boxShadow: '0 0 0 2px rgba(241,196,0,0.3)',
+  },
+  labelRow: {
+    display: 'flex',
+    gap: 8,
+    alignItems: 'center',
+    fontSize: 11,
+  },
+  cardsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 68,
+  },
+  infoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 22,
   },
   badge: {
     fontSize: 10,
