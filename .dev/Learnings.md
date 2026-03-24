@@ -20,4 +20,13 @@ TEMPLATE — Copy for each new learning:
 - **Related:** Links to code, decisions, other learnings, or external resources.
 -->
 
-<!-- Entries added by Claude Code as the project evolves -->
+## L-001 — PeerJS state sync needs ref-based access in callbacks
+- **Date:** 2026-03-24
+- **Category:** Gotcha
+- **Severity:** Medium
+- **What happened:** The `setOnAction` callback registered with PeerJS captures stale game state via closure, causing actions to be dispatched against outdated state.
+- **Root cause:** React hooks capture values at render time. PeerJS callbacks registered once don't re-capture updated state.
+- **Solution/Workaround:** Use `useRef` to hold current game state (`gameRef.current = game`) and access via ref inside callbacks. The `setOnAction` callback reads from `gameRef.current` instead of the closure-captured `game`.
+- **Prevention:** Always use refs for values accessed in long-lived callbacks (WebSocket handlers, PeerJS data handlers, timers).
+- **Time lost:** ~15 min
+- **Related:** DEC-004

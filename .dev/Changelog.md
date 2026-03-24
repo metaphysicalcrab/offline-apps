@@ -14,6 +14,31 @@ FORMAT:
 - Decisions made (reference DEC-### in Decisions.md if logged)
 -->
 
+## 2026-03-24 — Wire Up Multiplayer State Sync & Polish
+**Focus:** Connect existing multiplayer infrastructure to game state, add animations and reconnection
+- Wired host-authoritative multiplayer: host broadcasts game state on every phase change, guests render from synced state
+- Added SYNC_STATE reducer action for guests to receive full state from host
+- Added action routing: guests send actions to host via PeerJS, host dispatches and re-broadcasts
+- Updated player identity system with peer IDs for multiplayer turn management
+- Added multiplayer betting UI: all players place bets independently, host controls deal
+- Added connection status bar (room code, player count, green/red indicator)
+- Added 30-second turn timeout with countdown for multiplayer (auto-stand on timeout)
+- Added card deal animation (slide-in with stagger) and dealer hole card flip animation
+- Added guest reconnection with exponential backoff (3 attempts: 1s, 2s, 4s)
+- Added "Waiting for..." indicators throughout multiplayer flow (lobby, betting, turns, results)
+- Decisions made: DEC-004 (host-authoritative state sync pattern)
+
+## 2026-03-24 — Multiplayer Blackjack Feature
+**Focus:** Full blackjack game mode with multi-device multiplayer and casino practice tools
+- Added BLACKJACK game mode with full casino rules (6-deck shoe, split/re-split up to 4, double down, insurance, surrender)
+- Built pure game logic engine (`src/game/blackjack.js`) and basic strategy engine (`src/game/blackjackStrategy.js`)
+- Created `useBlackjack` hook with useReducer state machine (betting → dealing → insurance → player turn → dealer turn → resolve)
+- Built 8 new UI components: BlackjackGame, BlackjackHand, BlackjackBetting, BlackjackControls, BlackjackResults, BlackjackRules, BlackjackStrategy, BlackjackLobby
+- Added practice tools: real-time optimal play hints, Hi-Lo card counting display (running count + true count), basic strategy chart (hard/soft/pairs), comprehensive rules breakdown with casino etiquette
+- Added PeerJS (WebRTC) for multi-device multiplayer via room codes — host-authoritative model, no backend needed
+- Stats tracking: hands played, win rate, blackjacks, persisted to localStorage
+- Decisions made: DEC-002 (PeerJS for multiplayer), DEC-003 (lobby pattern)
+
 ## 2026-03-21 — Project Initialized
 **Focus:** Framework setup
 - Initialized Dev Framework (.dev/ directory structure)

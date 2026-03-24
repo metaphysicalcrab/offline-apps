@@ -5,6 +5,7 @@ const modes = [
   { key: GAME_MODES.FREE_DRAW, label: 'Free Draw', icon: '🎴' },
   { key: GAME_MODES.KINGS_CUP, label: "King's Cup", icon: '👑' },
   { key: GAME_MODES.HIGH_LOW, label: 'High-Low', icon: '📈' },
+  { key: GAME_MODES.BLACKJACK, label: 'Blackjack', icon: '🃏' },
 ];
 
 export default function GameModeSelector({ mode, setMode, hasActiveState, themeStyles }) {

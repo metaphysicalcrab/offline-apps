@@ -10,7 +10,10 @@
 
 | Name | One-liner | Doc |
 |------|-----------|-----|
-<!-- Add rows as features are built -->
+| Blackjack | Casino blackjack with full rules, practice tools, and multiplayer | — |
+| Free Draw | Basic deck drawing for any card game | — |
+| King's Cup | Drinking game with customizable rules per card rank | — |
+| High-Low | Guess if next card is higher or lower, track streaks | — |
 
 ## Systems
 
@@ -18,7 +21,9 @@
 
 | Name | One-liner | Doc |
 |------|-----------|-----|
-<!-- Add rows as systems emerge -->
+| Deck System | Card creation, shuffling, shoe management | `src/game/deck.js`, `src/game/blackjack.js` |
+| Multiplayer | PeerJS WebRTC peer-to-peer connections | `src/hooks/useMultiplayer.js` |
+| Strategy Engine | Basic strategy lookup and Hi-Lo card counting | `src/game/blackjackStrategy.js` |
 
 ## Utilities
 
@@ -26,4 +31,7 @@
 
 | Name | One-liner | Doc |
 |------|-----------|-----|
-<!-- Add rows as utilities are created -->
+| useLocalStorage | Generic localStorage persistence hook | `src/hooks/useLocalStorage.js` |
+| useAudio | Web Audio API sound effects | `src/hooks/useAudio.js` |
+| useHaptics | Vibration feedback patterns | `src/hooks/useHaptics.js` |
+| Theme System | Dark/light theme with inline style objects | `src/hooks/useTheme.js`, `src/styles/themes.js` |
