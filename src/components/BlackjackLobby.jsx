@@ -148,15 +148,17 @@ export default function BlackjackLobby({
             </button>
             <button
               onClick={mode === 'create' ? handleCreate : handleJoin}
-              disabled={!playerName.trim() || (mode === 'join' && !joinCode.trim())}
+              disabled={multiplayer.isConnecting || !playerName.trim() || (mode === 'join' && !joinCode.trim())}
               style={{
                 ...styles.btn,
                 ...themeStyles?.buttonPrimary,
                 flex: 1,
-                opacity: !playerName.trim() ? 0.4 : 1,
+                opacity: (multiplayer.isConnecting || !playerName.trim()) ? 0.4 : 1,
               }}
             >
-              {mode === 'create' ? 'Create' : 'Join'}
+              {multiplayer.isConnecting
+                ? 'Connecting...'
+                : (mode === 'create' ? 'Create' : 'Join')}
             </button>
           </div>
         </div>

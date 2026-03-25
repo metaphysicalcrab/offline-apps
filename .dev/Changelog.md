@@ -14,6 +14,14 @@ FORMAT:
 - Decisions made (reference DEC-### in Decisions.md if logged)
 -->
 
+## 2026-03-25 — Fix Multiplayer Room Joining
+**Focus:** Fix three bugs preventing multiplayer blackjack from working
+- Added PeerJS peer config with explicit STUN servers and 8-second connection timeout (was silently hanging forever when signaling server unreachable)
+- Added `isConnecting` state + "Connecting..." button feedback in lobby (was showing no loading indicator)
+- Fixed guest player ID resolution: guests now use their actual PeerJS peer ID instead of picking the first non-host player (was broken with 2+ guests)
+- Expanded error handling for PeerJS error types (network, server-error, unavailable-id)
+- Learnings logged: L-002, L-003
+
 ## 2026-03-24 — Wire Up Multiplayer State Sync & Polish
 **Focus:** Connect existing multiplayer infrastructure to game state, add animations and reconnection
 - Wired host-authoritative multiplayer: host broadcasts game state on every phase change, guests render from synced state
