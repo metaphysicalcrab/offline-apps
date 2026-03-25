@@ -85,7 +85,11 @@ export default function App() {
   }, [deck.reset, gameMode]);
 
   return (
-    <div style={{ ...themeStyles.app, fontFamily: appearance.fontFamily }}>
+    <div style={{
+      ...themeStyles.app,
+      fontFamily: appearance.fontFamily,
+      ...(gameMode.mode === GAME_MODES.BLACKJACK ? { height: '100dvh', maxHeight: '100dvh', overflow: 'hidden' } : {}),
+    }}>
       <header style={themeStyles.header}>
         <GameModeSelector
           mode={gameMode.mode}

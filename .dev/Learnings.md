@@ -20,6 +20,16 @@ TEMPLATE — Copy for each new learning:
 - **Related:** Links to code, decisions, other learnings, or external resources.
 -->
 
+## L-004 — minHeight breaks nested flex scroll containment
+- **Date:** 2026-03-25
+- **Category:** Bug
+- **Severity:** High
+- **What happened:** 3-zone flex layout (pinned top/bottom, scrollable middle) didn't work — entire page scrolled instead of just the middle zone.
+- **Root cause:** Parent container used `minHeight: 100dvh` instead of `height: 100dvh`. With `minHeight`, flex children with `flex: 1; height: 0` can't constrain because the parent grows to fit content.
+- **Solution/Workaround:** Override app container to `height: 100dvh; overflow: hidden` when Blackjack mode is active, keeping `minHeight` for other simpler modes.
+- **Prevention:** For pinned-header/footer layouts, the entire ancestor chain must have fixed heights (not min-heights). Use `height` + `overflow: hidden` on the outermost container.
+- **Time lost:** ~30min across 2 sessions
+
 ## L-003 — PeerJS guest identity requires exposing peer ID
 - **Date:** 2026-03-25
 - **Category:** Bug

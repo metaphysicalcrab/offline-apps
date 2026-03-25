@@ -14,6 +14,12 @@ FORMAT:
 - Decisions made (reference DEC-### in Decisions.md if logged)
 -->
 
+## 2026-03-25 — Fix Sticky Dealer/Buttons Not Working
+**Focus:** Fix the 3-zone layout so dealer hand and action buttons are truly pinned
+- Root cause: App container used `minHeight: 100dvh` which allowed it to grow beyond viewport, breaking flex height constraints
+- Fix: When in Blackjack mode, override app container to `height: 100dvh; overflow: hidden` so the 3-zone flex layout is properly constrained
+- Dealer hand stays visible at top, action buttons stay pinned at bottom, only player hands scroll
+
 ## 2026-03-25 — Sticky Layout + Learning Mode for Blackjack
 **Focus:** Improve mobile UX and add post-action feedback for learning basic strategy
 - Restructured BlackjackGame layout into 3 zones: pinned top (dealer), scrollable middle (player hands), pinned bottom (controls/betting/stats)
