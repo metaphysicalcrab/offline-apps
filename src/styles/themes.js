@@ -5,6 +5,7 @@ export const darkTheme = {
     color: '#e8e0d4',
     display: 'flex',
     flexDirection: 'column',
+    paddingBottom: 'env(safe-area-inset-bottom)',
   },
   header: {
     display: 'flex',
@@ -84,6 +85,7 @@ export const lightTheme = {
     color: '#3a2e1f',
     display: 'flex',
     flexDirection: 'column',
+    paddingBottom: 'env(safe-area-inset-bottom)',
   },
   header: {
     display: 'flex',
