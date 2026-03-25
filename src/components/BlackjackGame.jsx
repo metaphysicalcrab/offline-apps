@@ -487,16 +487,18 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
           </div>
         )}
 
-        {/* Dealer hand */}
-        <div style={styles.dealerArea}>
-          <BlackjackHand
-            hand={game.dealer.cards.length > 0 ? { cards: game.dealer.cards, status: HAND_STATUS.PLAYING } : { cards: [], status: HAND_STATUS.PLAYING }}
-            isDealer
-            hidden={game.dealer.hidden}
-            themeStyles={themeStyles}
-            label="Dealer"
-          />
-        </div>
+        {/* Dealer hand — hide empty placeholder during betting */}
+        {game.phase !== GAME_PHASE.BETTING && (
+          <div style={styles.dealerArea}>
+            <BlackjackHand
+              hand={game.dealer.cards.length > 0 ? { cards: game.dealer.cards, status: HAND_STATUS.PLAYING } : { cards: [], status: HAND_STATUS.PLAYING }}
+              isDealer
+              hidden={game.dealer.hidden}
+              themeStyles={themeStyles}
+              label="Dealer"
+            />
+          </div>
+        )}
       </div>
 
       {/* === MIDDLE ZONE — scrollable === */}
@@ -532,36 +534,55 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
           </div>
         )}
 
-        {/* Player hands */}
-        <div style={styles.playersArea}>
-          {game.players.map((player, pi) => (
-            <div key={pi} style={{
-              ...styles.playerSection,
-              ...((isMultiplayer || hasNPCs) && pi === localPlayerIndex ? styles.localPlayerSection : {}),
-            }}>
-              <div style={{ ...themeStyles?.textMuted, fontSize: 11, textAlign: 'center' }}>
-                {player.name}
-                {pi === localPlayerIndex && hasNPCs ? ' (You)' : ''}
-                {isMultiplayer && pi === localPlayerIndex ? ' (You)' : ''}
-                {player.isNPC && <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.5 }}>NPC</span>}
-                {player.hands.length > 1 ? ` — Hand ${player.activeHandIndex + 1}/${player.hands.length}` : ''}
-                {(isMultiplayer || player.isNPC) && <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>${player.chips}</span>}
+        {/* Player hands — compact during betting, full during play */}
+        {game.phase === GAME_PHASE.BETTING ? (
+          <div style={styles.compactPlayers}>
+            {game.players.map((player, pi) => (
+              <div key={pi} style={{
+                ...styles.compactPlayerChip,
+                ...(pi === localPlayerIndex ? styles.compactPlayerChipLocal : {}),
+              }}>
+                <span style={{ ...themeStyles?.textMuted, fontSize: 12 }}>
+                  {player.name}
+                  {pi === localPlayerIndex && hasNPCs ? ' (You)' : ''}
+                  {isMultiplayer && pi === localPlayerIndex ? ' (You)' : ''}
+                  {player.isNPC && <span style={{ fontSize: 10, opacity: 0.5 }}> NPC</span>}
+                </span>
+                <span style={{ ...themeStyles?.textAccent, fontSize: 11 }}>${player.chips}</span>
               </div>
-              <div style={styles.handsRow}>
-                {player.hands.map((hand, hi) => (
-                  <BlackjackHand
-                    key={hi}
-                    hand={hand}
-                    isActive={isPlayerTurn && pi === game.currentPlayerIndex && hi === player.activeHandIndex}
-                    themeStyles={themeStyles}
-                    label={player.hands.length > 1 ? `Hand ${hi + 1}` : null}
-                    handIndex={hi}
-                  />
-                ))}
+            ))}
+          </div>
+        ) : (
+          <div style={styles.playersArea}>
+            {game.players.map((player, pi) => (
+              <div key={pi} style={{
+                ...styles.playerSection,
+                ...((isMultiplayer || hasNPCs) && pi === localPlayerIndex ? styles.localPlayerSection : {}),
+              }}>
+                <div style={{ ...themeStyles?.textMuted, fontSize: 11, textAlign: 'center' }}>
+                  {player.name}
+                  {pi === localPlayerIndex && hasNPCs ? ' (You)' : ''}
+                  {isMultiplayer && pi === localPlayerIndex ? ' (You)' : ''}
+                  {player.isNPC && <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.5 }}>NPC</span>}
+                  {player.hands.length > 1 ? ` — Hand ${player.activeHandIndex + 1}/${player.hands.length}` : ''}
+                  {(isMultiplayer || player.isNPC) && <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>${player.chips}</span>}
+                </div>
+                <div style={styles.handsRow}>
+                  {player.hands.map((hand, hi) => (
+                    <BlackjackHand
+                      key={hi}
+                      hand={hand}
+                      isActive={isPlayerTurn && pi === game.currentPlayerIndex && hi === player.activeHandIndex}
+                      themeStyles={themeStyles}
+                      label={player.hands.length > 1 ? `Hand ${hi + 1}` : null}
+                      handIndex={hi}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Waiting for other player (multiplayer) */}
         {isPlayerTurn && !isLocalPlayerTurn && isMultiplayer && (
@@ -779,6 +800,25 @@ const styles = {
     justifyContent: 'center',
     padding: '8px 0',
     minHeight: 100,
+  },
+  compactPlayers: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    padding: '8px 12px',
+  },
+  compactPlayerChip: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '4px 12px',
+    borderRadius: 16,
+    background: 'rgba(255,255,255,0.04)',
+  },
+  compactPlayerChipLocal: {
+    background: 'rgba(39,174,96,0.1)',
+    boxShadow: '0 0 0 1px rgba(39,174,96,0.2)',
   },
   playersArea: {
     display: 'flex',
