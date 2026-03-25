@@ -15,6 +15,7 @@ export default function BlackjackLobby({
   const [mode, setMode] = useState(null); // null, 'create', 'join'
   const [playerName, setPlayerName] = useState('');
   const [joinCode, setJoinCode] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const handleCreate = () => {
     if (!playerName.trim()) return;
@@ -35,13 +36,23 @@ export default function BlackjackLobby({
             {multiplayer.isHost ? 'Your Room' : 'Joined Room'}
           </div>
 
-          <div style={styles.codeDisplay}>
+          <div
+            style={{ ...styles.codeDisplay, cursor: 'pointer' }}
+            onClick={() => {
+              navigator.clipboard.writeText(multiplayer.roomCode);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label={`Copy room code ${multiplayer.roomCode}`}
+          >
             <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>ROOM CODE</span>
             <span style={{ ...themeStyles?.textAccent, fontSize: 32, fontWeight: 700, letterSpacing: 4 }}>
               {multiplayer.roomCode}
             </span>
             <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
-              Share this code with friends
+              {copied ? 'Copied!' : 'Tap to copy'}
             </span>
           </div>
 
