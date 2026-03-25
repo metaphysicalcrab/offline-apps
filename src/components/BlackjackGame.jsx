@@ -717,6 +717,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     flex: 1,
+    height: 0,
     width: '100%',
     overflow: 'hidden',
   },
