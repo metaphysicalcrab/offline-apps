@@ -14,6 +14,12 @@ FORMAT:
 - Decisions made (reference DEC-### in Decisions.md if logged)
 -->
 
+## 2026-03-25 — Auto-scroll to Active Player
+**Focus:** Reduce scrolling fatigue by auto-scrolling to the active player's hand
+- Added refs to middle zone and player sections
+- useEffect scrolls active player into view (smooth, centered) when turn changes
+- Works for both local and NPC players during play phase
+
 ## 2026-03-25 — Fix Sticky Dealer/Buttons Not Working
 **Focus:** Fix the 3-zone layout so dealer hand and action buttons are truly pinned
 - Root cause: App container used `minHeight: 100dvh` which allowed it to grow beyond viewport, breaking flex height constraints
