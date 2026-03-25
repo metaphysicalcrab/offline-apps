@@ -50,6 +50,8 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
   // Refs for stable access in callbacks
   const gameRef = useRef(game);
   gameRef.current = game;
+  const middleZoneRef = useRef(null);
+  const playerRefs = useRef([]);
 
   // Derived state
   const localPlayerIndex = isMultiplayer
@@ -210,6 +212,15 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
   useEffect(() => {
     setFeedback(null);
   }, [game.phase]);
+
+  // Auto-scroll to active player
+  useEffect(() => {
+    if (game.phase !== GAME_PHASE.PLAYER_TURN) return;
+    const el = playerRefs.current[game.currentPlayerIndex];
+    if (el && middleZoneRef.current) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [game.currentPlayerIndex, game.phase]);
 
   // Get available actions for current hand
   const availableActions = isPlayerTurn && activeHand
@@ -502,7 +513,7 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
       </div>
 
       {/* === MIDDLE ZONE — scrollable === */}
-      <div style={styles.middleZone}>
+      <div ref={middleZoneRef} style={styles.middleZone}>
         {/* Insurance prompt */}
         {game.phase === GAME_PHASE.INSURANCE && (
           <div style={styles.insurancePrompt}>
@@ -555,7 +566,7 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
         ) : (
           <div style={styles.playersArea}>
             {game.players.map((player, pi) => (
-              <div key={pi} style={{
+              <div key={pi} ref={el => playerRefs.current[pi] = el} style={{
                 ...styles.playerSection,
                 ...((isMultiplayer || hasNPCs) && pi === localPlayerIndex ? styles.localPlayerSection : {}),
               }}>
