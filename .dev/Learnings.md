@@ -20,6 +20,28 @@ TEMPLATE — Copy for each new learning:
 - **Related:** Links to code, decisions, other learnings, or external resources.
 -->
 
+## L-003 — PeerJS guest identity requires exposing peer ID
+- **Date:** 2026-03-25
+- **Category:** Bug
+- **Severity:** High
+- **What happened:** With 2+ guests in multiplayer blackjack, every guest controlled the same player. The guest player ID resolution used `multiplayer.players.find(p => !p.isHost && p.id)?.id` which always returns the first non-host player.
+- **Root cause:** The hook didn't expose the guest's own PeerJS peer ID. Without it, there was no way to distinguish which player "I" am.
+- **Solution/Workaround:** Added `myPeerId` state to `useMultiplayer`, set from `peer.id` in the `open` handler. Guests use this directly as their `localPlayerId`.
+- **Prevention:** When building multiplayer identity systems, always expose the local player's unique ID from the connection layer.
+- **Time lost:** N/A (discovered during bug investigation)
+- **Related:** L-001
+
+## L-002 — PeerJS default cloud server hangs silently when unreachable
+- **Date:** 2026-03-25
+- **Category:** Bug
+- **Severity:** Critical
+- **What happened:** Clicking "Join" or "Create" in multiplayer lobby did nothing — no error, no loading, no feedback.
+- **Root cause:** `new Peer()` with no config uses the free PeerJS cloud server (`0.peerjs.com`). When unreachable, `peer.on('open')` never fires and there was no timeout. Combined with no loading state, users saw zero feedback.
+- **Solution/Workaround:** Added explicit STUN server config, 8-second connection timeout that destroys the peer and shows an error, and `isConnecting` state for UI feedback.
+- **Prevention:** Always add connection timeouts for external service dependencies. Always show loading states for async connection operations.
+- **Time lost:** N/A (discovered during bug investigation)
+- **Related:** PeerJS ^1.5.5, src/hooks/useMultiplayer.js
+
 ## L-001 — PeerJS state sync needs ref-based access in callbacks
 - **Date:** 2026-03-24
 - **Category:** Gotcha

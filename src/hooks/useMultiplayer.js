@@ -22,6 +22,16 @@ function generateRoomCode() {
 const PEER_PREFIX = 'draw-bj-';
 const MAX_RECONNECT_ATTEMPTS = 3;
 const RECONNECT_DELAYS = [1000, 2000, 4000]; // exponential backoff
+const PEER_CONNECT_TIMEOUT_MS = 8000;
+const PEER_CONFIG = {
+  debug: 0,
+  config: {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ],
+  },
+};
 
 export function useMultiplayer() {
   const [isHost, setIsHost] = useState(false);
@@ -31,6 +41,8 @@ export function useMultiplayer() {
   const [error, setError] = useState(null);
   const [gameState, setGameState] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected'); // 'connected' | 'reconnecting' | 'disconnected'
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [myPeerId, setMyPeerId] = useState(null);
 
   const peerRef = useRef(null);
   const connectionsRef = useRef([]); // Host: connections to clients
@@ -39,11 +51,21 @@ export function useMultiplayer() {
   const reconnectAttemptRef = useRef(0);
   const reconnectTimerRef = useRef(null);
   const joinInfoRef = useRef(null); // Store code + name for reconnection
+  const openTimeoutRef = useRef(null);
+  const connTimeoutRef = useRef(null);
 
   const cleanup = useCallback(() => {
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
+    }
+    if (openTimeoutRef.current) {
+      clearTimeout(openTimeoutRef.current);
+      openTimeoutRef.current = null;
+    }
+    if (connTimeoutRef.current) {
+      clearTimeout(connTimeoutRef.current);
+      connTimeoutRef.current = null;
     }
     reconnectAttemptRef.current = 0;
     connectionsRef.current.forEach(c => c.close());
@@ -58,11 +80,13 @@ export function useMultiplayer() {
     }
     setIsHost(false);
     setIsConnected(false);
+    setIsConnecting(false);
     setRoomCode(null);
     setPlayers([]);
     setError(null);
     setGameState(null);
     setConnectionStatus('disconnected');
+    setMyPeerId(null);
     joinInfoRef.current = null;
   }, []);
 
@@ -72,18 +96,33 @@ export function useMultiplayer() {
   const createRoom = useCallback(async (playerName) => {
     try {
       setError(null);
+      setIsConnecting(true);
       const Peer = await getPeer();
       const code = generateRoomCode();
       const peerId = PEER_PREFIX + code;
 
-      const peer = new Peer(peerId);
+      const peer = new Peer(peerId, PEER_CONFIG);
       peerRef.current = peer;
 
+      openTimeoutRef.current = setTimeout(() => {
+        if (!peer.open && !peer.destroyed) {
+          peer.destroy();
+          peerRef.current = null;
+          setIsConnecting(false);
+          setError('Could not reach signaling server. Check your internet connection and try again.');
+          setConnectionStatus('disconnected');
+        }
+      }, PEER_CONNECT_TIMEOUT_MS);
+
       peer.on('open', () => {
+        clearTimeout(openTimeoutRef.current);
+        openTimeoutRef.current = null;
+        setIsConnecting(false);
         setIsHost(true);
         setIsConnected(true);
         setConnectionStatus('connected');
         setRoomCode(code);
+        setMyPeerId(peerId);
         setPlayers([{ name: playerName, isHost: true, id: 'host' }]);
       });
 
@@ -120,9 +159,18 @@ export function useMultiplayer() {
       });
 
       peer.on('error', (err) => {
-        setError(`Connection error: ${err.type}`);
+        setIsConnecting(false);
+        if (err.type === 'unavailable-id') {
+          setError('Room code conflict. Try creating a new room.');
+        } else if (err.type === 'network' || err.type === 'server-error') {
+          setError('Cannot reach signaling server. Check your connection.');
+        } else {
+          setError(`Connection error: ${err.type}`);
+        }
+        setConnectionStatus('disconnected');
       });
     } catch (err) {
+      setIsConnecting(false);
       setError('Failed to create room. Check your connection.');
     }
   }, []);
@@ -132,7 +180,19 @@ export function useMultiplayer() {
     const conn = peer.connect(hostPeerId, { reliable: true });
     hostConnRef.current = conn;
 
+    connTimeoutRef.current = setTimeout(() => {
+      if (!conn.open) {
+        conn.close();
+        setIsConnecting(false);
+        setError('Could not connect to host. The room may no longer exist.');
+        setConnectionStatus('disconnected');
+      }
+    }, PEER_CONNECT_TIMEOUT_MS);
+
     conn.on('open', () => {
+      clearTimeout(connTimeoutRef.current);
+      connTimeoutRef.current = null;
+      setIsConnecting(false);
       setIsConnected(true);
       setConnectionStatus('connected');
       setRoomCode(code.toUpperCase());
@@ -178,26 +238,44 @@ export function useMultiplayer() {
   const joinRoom = useCallback(async (code, playerName) => {
     try {
       setError(null);
+      setIsConnecting(true);
       reconnectAttemptRef.current = 0;
       joinInfoRef.current = { code: code.toUpperCase(), name: playerName };
 
       const Peer = await getPeer();
-      const peer = new Peer();
+      const peer = new Peer(PEER_CONFIG);
       peerRef.current = peer;
 
+      openTimeoutRef.current = setTimeout(() => {
+        if (!peer.open && !peer.destroyed) {
+          peer.destroy();
+          peerRef.current = null;
+          setIsConnecting(false);
+          setError('Could not reach signaling server. Check your internet connection and try again.');
+          setConnectionStatus('disconnected');
+        }
+      }, PEER_CONNECT_TIMEOUT_MS);
+
       peer.on('open', () => {
+        clearTimeout(openTimeoutRef.current);
+        openTimeoutRef.current = null;
+        setMyPeerId(peer.id);
         connectToHost(peer, code, playerName);
       });
 
       peer.on('error', (err) => {
+        setIsConnecting(false);
         if (err.type === 'peer-unavailable') {
           setError('Room not found. Check the code and try again.');
-          setConnectionStatus('disconnected');
+        } else if (err.type === 'network' || err.type === 'server-error') {
+          setError('Cannot reach signaling server. Check your connection.');
         } else {
           setError(`Connection error: ${err.type}`);
         }
+        setConnectionStatus('disconnected');
       });
     } catch (err) {
+      setIsConnecting(false);
       setError('Failed to join room. Check your connection.');
     }
   }, [connectToHost]);
@@ -234,11 +312,13 @@ export function useMultiplayer() {
   return {
     isHost,
     isConnected,
+    isConnecting,
     roomCode,
     players,
     error,
     gameState,
     connectionStatus,
+    myPeerId,
     createRoom,
     joinRoom,
     leaveRoom,

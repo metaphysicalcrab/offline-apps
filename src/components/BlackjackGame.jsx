@@ -255,18 +255,13 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
     setInLobby(false);
   }, [game, multiplayer]);
 
-  // Guest: figure out localPlayerId from synced state
+  // Guest: resolve localPlayerId from our actual peer ID
   useEffect(() => {
     if (!isMultiplayer || multiplayer.isHost || localPlayerId) return;
-    // Find our player by matching multiplayer player list
-    const myPeerName = multiplayer.players.find(p => !p.isHost && p.id)?.id;
-    // On PeerJS the guest's peer id is in each connection
-    // The host stores our peer id as player.id in game state
-    // We need to check all players for one that matches a non-host multiplayer player
-    if (myPeerName) {
-      setLocalPlayerId(myPeerName);
+    if (multiplayer.myPeerId) {
+      setLocalPlayerId(multiplayer.myPeerId);
     }
-  }, [isMultiplayer, multiplayer.isHost, localPlayerId, multiplayer.players, game.players]);
+  }, [isMultiplayer, multiplayer.isHost, localPlayerId, multiplayer.myPeerId]);
 
   const handleLeaveTable = useCallback(() => {
     if (game.phase !== GAME_PHASE.BETTING || confirm('Leave the table?')) {
