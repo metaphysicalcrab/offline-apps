@@ -1,7 +1,7 @@
 export const darkTheme = {
   app: {
     background: 'linear-gradient(145deg, #0a1f13, #091a10, #0d2818)',
-    minHeight: '100vh',
+    minHeight: '100dvh',
     color: '#e8e0d4',
     display: 'flex',
     flexDirection: 'column',
@@ -80,7 +80,7 @@ export const darkTheme = {
 export const lightTheme = {
   app: {
     background: 'linear-gradient(145deg, #f5f0e6, #ebe4d4, #f0e8d6)',
-    minHeight: '100vh',
+    minHeight: '100dvh',
     color: '#3a2e1f',
     display: 'flex',
     flexDirection: 'column',
