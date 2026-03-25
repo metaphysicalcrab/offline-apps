@@ -14,6 +14,14 @@ FORMAT:
 - Decisions made (reference DEC-### in Decisions.md if logged)
 -->
 
+## 2026-03-25 — Sticky Layout + Learning Mode for Blackjack
+**Focus:** Improve mobile UX and add post-action feedback for learning basic strategy
+- Restructured BlackjackGame layout into 3 zones: pinned top (dealer), scrollable middle (player hands), pinned bottom (controls/betting/stats)
+- Dealer hand and action buttons now always visible on mobile without scrolling
+- Replaced binary hints toggle (ON/OFF) with 3-way hint mode: OFF / BEFORE / AFTER
+- AFTER mode shows green/red feedback after each action, comparing player choice to basic strategy optimal play
+- Feedback auto-dismisses after 3 seconds and clears on phase changes
+
 ## 2026-03-25 — Add NPC Multiplayer to Solo Blackjack
 **Focus:** Add AI-controlled players to solo blackjack to simulate a real casino table
 - Created `src/game/npcPlayer.js` — NPC behavior module (names, betting, action selection using basic strategy with ~10% mistake rate)

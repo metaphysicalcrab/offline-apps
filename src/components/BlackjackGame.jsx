@@ -29,10 +29,16 @@ function getSerializableState(game) {
 
 const TURN_TIMEOUT_MS = 30000;
 
+const ACTION_LABELS = {
+  hit: 'Hit', stand: 'Stand', double: 'Double', split: 'Split', surrender: 'Surrender',
+};
+
 export default function BlackjackGame({ themeStyles, audio, haptics }) {
   const game = useBlackjack();
   const multiplayer = useMultiplayer();
-  const [showHints, setShowHints] = useState(false);
+  const [hintMode, setHintMode] = useState('off'); // 'off' | 'before' | 'after'
+  const [feedback, setFeedback] = useState(null);
+  const optimalActionRef = useRef(null);
   const [showCount, setShowCount] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showStrategy, setShowStrategy] = useState(false);
@@ -193,6 +199,18 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
     // NPCs don't need separate handling — the reducer applies to all
   }, [game.phase, hasNPCs]);
 
+  // Auto-dismiss feedback after 3 seconds
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => setFeedback(null), 3000);
+    return () => clearTimeout(timer);
+  }, [feedback]);
+
+  // Clear feedback on phase changes
+  useEffect(() => {
+    setFeedback(null);
+  }, [game.phase]);
+
   // Get available actions for current hand
   const availableActions = isPlayerTurn && activeHand
     ? game.getAvailableActions(
@@ -203,8 +221,8 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
       )
     : [];
 
-  // Get hint
-  const hint = isPlayerTurn && activeHand && game.dealer.cards.length > 0
+  // Compute optimal action (needed for both 'before' and 'after' modes)
+  const computedHint = isPlayerTurn && activeHand && game.dealer.cards.length > 0
     ? (() => {
         const action = getOptimalAction(activeHand.cards, game.dealer.cards[0], availableActions);
         const explanation = getActionExplanation(action, activeHand.cards, game.dealer.cards[0]);
@@ -212,7 +230,26 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
       })()
     : null;
 
+  // Store in ref for 'after' mode comparison
+  if (computedHint) {
+    optimalActionRef.current = computedHint;
+  }
+
+  // Only expose hint for display in 'before' mode
+  const hint = hintMode === 'before' ? computedHint : null;
+
   const handleAction = useCallback((action) => {
+    // After-mode feedback: compare action to stored optimal
+    if (hintMode === 'after' && optimalActionRef.current) {
+      const { action: optimalAction, explanation } = optimalActionRef.current;
+      setFeedback({
+        takenAction: action,
+        optimalAction,
+        explanation,
+        isCorrect: action === optimalAction,
+      });
+    }
+
     // Guest: send to host
     if (isMultiplayer && !multiplayer.isHost) {
       multiplayer.sendAction({ type: action.toUpperCase() });
@@ -243,7 +280,7 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
         game.surrender(pi, hi);
         break;
     }
-  }, [game, currentPlayer, audio, isMultiplayer, multiplayer]);
+  }, [game, currentPlayer, audio, isMultiplayer, multiplayer, hintMode]);
 
   const handlePlaceBet = useCallback((playerIndex, amount) => {
     if (isMultiplayer && !multiplayer.isHost) {
@@ -344,261 +381,295 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
 
   return (
     <div style={styles.container}>
-      {/* Top bar */}
-      <div style={styles.topBar}>
-        <div style={styles.topBarLeft}>
-          <button
-            onClick={handleLeaveTable}
-            style={styles.iconBtn}
-            aria-label="Back to lobby"
-          >
-            ←
-          </button>
-          <button
-            onClick={() => setShowRules(true)}
-            style={styles.iconBtn}
-            aria-label="Rules"
-          >
-            📖
-          </button>
-          <button
-            onClick={() => setShowStrategy(true)}
-            style={styles.iconBtn}
-            aria-label="Strategy chart"
-          >
-            📊
-          </button>
+      {/* === TOP ZONE — pinned === */}
+      <div style={styles.topZone}>
+        {/* Top bar */}
+        <div style={styles.topBar}>
+          <div style={styles.topBarLeft}>
+            <button
+              onClick={handleLeaveTable}
+              style={styles.iconBtn}
+              aria-label="Back to lobby"
+            >
+              ←
+            </button>
+            <button
+              onClick={() => setShowRules(true)}
+              style={styles.iconBtn}
+              aria-label="Rules"
+            >
+              📖
+            </button>
+            <button
+              onClick={() => setShowStrategy(true)}
+              style={styles.iconBtn}
+              aria-label="Strategy chart"
+            >
+              📊
+            </button>
+          </div>
+          <div style={styles.topBarRight}>
+            <button
+              onClick={() => setHintMode(m => m === 'off' ? 'before' : m === 'before' ? 'after' : 'off')}
+              style={{ ...styles.toggleBtn, ...(hintMode !== 'off' ? styles.toggleActive : {}), ...themeStyles?.button }}
+              aria-label="Cycle hint mode"
+            >
+              💡 {hintMode === 'off' ? 'OFF' : hintMode === 'before' ? 'BEFORE' : 'AFTER'}
+            </button>
+            <button
+              onClick={() => setShowCount(c => !c)}
+              style={{ ...styles.toggleBtn, ...(showCount ? styles.toggleActive : {}), ...themeStyles?.button }}
+              aria-label="Toggle count"
+              aria-pressed={showCount}
+            >
+              🔢 {showCount ? 'ON' : 'OFF'}
+            </button>
+          </div>
         </div>
-        <div style={styles.topBarRight}>
-          <button
-            onClick={() => setShowHints(h => !h)}
-            style={{ ...styles.toggleBtn, ...(showHints ? styles.toggleActive : {}), ...themeStyles?.button }}
-            aria-label="Toggle hints"
-            aria-pressed={showHints}
-          >
-            💡 {showHints ? 'ON' : 'OFF'}
-          </button>
-          <button
-            onClick={() => setShowCount(c => !c)}
-            style={{ ...styles.toggleBtn, ...(showCount ? styles.toggleActive : {}), ...themeStyles?.button }}
-            aria-label="Toggle count"
-            aria-pressed={showCount}
-          >
-            🔢 {showCount ? 'ON' : 'OFF'}
-          </button>
-        </div>
-      </div>
 
-      {/* Connection status bar (multiplayer only) */}
-      {isMultiplayer && (
-        <div style={styles.connectionBar}>
-          <span style={{
-            display: 'inline-block',
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: multiplayer.isConnected ? '#27ae60' : '#e74c3c',
-          }} />
-          <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
-            {multiplayer.isConnected
-              ? `Room: ${multiplayer.roomCode}`
-              : 'Disconnected'}
-          </span>
-          <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
-            {multiplayer.players.length} player{multiplayer.players.length !== 1 ? 's' : ''}
-          </span>
-          {isPlayerTurn && isMultiplayer && turnTimeLeft !== null && (
+        {/* Connection status bar (multiplayer only) */}
+        {isMultiplayer && (
+          <div style={styles.connectionBar}>
             <span style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: turnTimeLeft <= 10 ? '#e74c3c' : '#f39c12',
-            }}>
-              {turnTimeLeft}s
+              display: 'inline-block',
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: multiplayer.isConnected ? '#27ae60' : '#e74c3c',
+            }} />
+            <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
+              {multiplayer.isConnected
+                ? `Room: ${multiplayer.roomCode}`
+                : 'Disconnected'}
             </span>
-          )}
-        </div>
-      )}
-
-      {/* Multiplayer error overlay */}
-      {isMultiplayer && multiplayer.error && !multiplayer.isConnected && (
-        <div style={styles.errorOverlay}>
-          <div style={{ ...themeStyles?.text, fontSize: 14, fontWeight: 600, textAlign: 'center' }}>
-            {multiplayer.error}
+            <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
+              {multiplayer.players.length} player{multiplayer.players.length !== 1 ? 's' : ''}
+            </span>
+            {isPlayerTurn && isMultiplayer && turnTimeLeft !== null && (
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: turnTimeLeft <= 10 ? '#e74c3c' : '#f39c12',
+              }}>
+                {turnTimeLeft}s
+              </span>
+            )}
           </div>
-          <button
-            onClick={handleLeaveTable}
-            style={{ ...styles.insuranceBtn, ...themeStyles?.button, marginTop: 8 }}
-          >
-            Return to Lobby
-          </button>
-        </div>
-      )}
+        )}
 
-      {/* Running count display */}
-      {showCount && (
-        <div style={styles.countBar}>
-          <span style={{ fontSize: 12, color: '#95a5a6' }}>
-            RC: <strong style={{ color: game.runningCount >= 0 ? '#27ae60' : '#e74c3c' }}>{game.runningCount > 0 ? '+' : ''}{game.runningCount}</strong>
-          </span>
-          <span style={{ fontSize: 12, color: '#95a5a6' }}>
-            TC: <strong style={{ color: game.trueCount >= 0 ? '#27ae60' : '#e74c3c' }}>{game.trueCount > 0 ? '+' : ''}{game.trueCount}</strong>
-          </span>
-          <span style={{ fontSize: 12, color: '#95a5a6' }}>
-            Decks: {game.decksRemaining}
-          </span>
-        </div>
-      )}
+        {/* Multiplayer error overlay */}
+        {isMultiplayer && multiplayer.error && !multiplayer.isConnected && (
+          <div style={styles.errorOverlay}>
+            <div style={{ ...themeStyles?.text, fontSize: 14, fontWeight: 600, textAlign: 'center' }}>
+              {multiplayer.error}
+            </div>
+            <button
+              onClick={handleLeaveTable}
+              style={{ ...styles.insuranceBtn, ...themeStyles?.button, marginTop: 8 }}
+            >
+              Return to Lobby
+            </button>
+          </div>
+        )}
 
-      {/* Dealer hand */}
-      <div style={styles.dealerArea}>
-        <BlackjackHand
-          hand={game.dealer.cards.length > 0 ? { cards: game.dealer.cards, status: HAND_STATUS.PLAYING } : { cards: [], status: HAND_STATUS.PLAYING }}
-          isDealer
-          hidden={game.dealer.hidden}
-          themeStyles={themeStyles}
-          label="Dealer"
-        />
+        {/* Running count display */}
+        {showCount && (
+          <div style={styles.countBar}>
+            <span style={{ fontSize: 12, color: '#95a5a6' }}>
+              RC: <strong style={{ color: game.runningCount >= 0 ? '#27ae60' : '#e74c3c' }}>{game.runningCount > 0 ? '+' : ''}{game.runningCount}</strong>
+            </span>
+            <span style={{ fontSize: 12, color: '#95a5a6' }}>
+              TC: <strong style={{ color: game.trueCount >= 0 ? '#27ae60' : '#e74c3c' }}>{game.trueCount > 0 ? '+' : ''}{game.trueCount}</strong>
+            </span>
+            <span style={{ fontSize: 12, color: '#95a5a6' }}>
+              Decks: {game.decksRemaining}
+            </span>
+          </div>
+        )}
+
+        {/* Dealer hand */}
+        <div style={styles.dealerArea}>
+          <BlackjackHand
+            hand={game.dealer.cards.length > 0 ? { cards: game.dealer.cards, status: HAND_STATUS.PLAYING } : { cards: [], status: HAND_STATUS.PLAYING }}
+            isDealer
+            hidden={game.dealer.hidden}
+            themeStyles={themeStyles}
+            label="Dealer"
+          />
+        </div>
       </div>
 
-      {/* Insurance prompt */}
-      {game.phase === GAME_PHASE.INSURANCE && (
-        <div style={styles.insurancePrompt}>
-          <div style={{ ...themeStyles?.text, fontSize: 14, fontWeight: 600, textAlign: 'center' }}>
-            Dealer shows Ace — Insurance?
-          </div>
-          <div style={{ ...themeStyles?.textMuted, fontSize: 12, textAlign: 'center' }}>
-            Cost: ${Math.floor(localPlayer.hands[0].bet / 2)} (pays 2:1 if dealer has blackjack)
-          </div>
-          <div style={styles.insuranceActions}>
-            <button
-              onClick={() => handleInsurance(false)}
-              style={{ ...styles.insuranceBtn, ...themeStyles?.button }}
-            >
-              No Thanks
-            </button>
-            <button
-              onClick={() => handleInsurance(true)}
-              style={{ ...styles.insuranceBtn, ...themeStyles?.buttonPrimary }}
-            >
-              Take Insurance
-            </button>
-          </div>
-          {showHints && (
-            <div style={{ fontSize: 11, color: '#f1c40f', textAlign: 'center' }}>
-              💡 Basic strategy: Never take insurance
+      {/* === MIDDLE ZONE — scrollable === */}
+      <div style={styles.middleZone}>
+        {/* Insurance prompt */}
+        {game.phase === GAME_PHASE.INSURANCE && (
+          <div style={styles.insurancePrompt}>
+            <div style={{ ...themeStyles?.text, fontSize: 14, fontWeight: 600, textAlign: 'center' }}>
+              Dealer shows Ace — Insurance?
             </div>
-          )}
-        </div>
-      )}
+            <div style={{ ...themeStyles?.textMuted, fontSize: 12, textAlign: 'center' }}>
+              Cost: ${Math.floor(localPlayer.hands[0].bet / 2)} (pays 2:1 if dealer has blackjack)
+            </div>
+            <div style={styles.insuranceActions}>
+              <button
+                onClick={() => handleInsurance(false)}
+                style={{ ...styles.insuranceBtn, ...themeStyles?.button }}
+              >
+                No Thanks
+              </button>
+              <button
+                onClick={() => handleInsurance(true)}
+                style={{ ...styles.insuranceBtn, ...themeStyles?.buttonPrimary }}
+              >
+                Take Insurance
+              </button>
+            </div>
+            {hintMode === 'before' && (
+              <div style={{ fontSize: 11, color: '#f1c40f', textAlign: 'center' }}>
+                💡 Basic strategy: Never take insurance
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* Player hands */}
-      <div style={styles.playersArea}>
-        {game.players.map((player, pi) => (
-          <div key={pi} style={{
-            ...styles.playerSection,
-            ...((isMultiplayer || hasNPCs) && pi === localPlayerIndex ? styles.localPlayerSection : {}),
+        {/* Player hands */}
+        <div style={styles.playersArea}>
+          {game.players.map((player, pi) => (
+            <div key={pi} style={{
+              ...styles.playerSection,
+              ...((isMultiplayer || hasNPCs) && pi === localPlayerIndex ? styles.localPlayerSection : {}),
+            }}>
+              <div style={{ ...themeStyles?.textMuted, fontSize: 11, textAlign: 'center' }}>
+                {player.name}
+                {pi === localPlayerIndex && hasNPCs ? ' (You)' : ''}
+                {isMultiplayer && pi === localPlayerIndex ? ' (You)' : ''}
+                {player.isNPC && <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.5 }}>NPC</span>}
+                {player.hands.length > 1 ? ` — Hand ${player.activeHandIndex + 1}/${player.hands.length}` : ''}
+                {(isMultiplayer || player.isNPC) && <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>${player.chips}</span>}
+              </div>
+              <div style={styles.handsRow}>
+                {player.hands.map((hand, hi) => (
+                  <BlackjackHand
+                    key={hi}
+                    hand={hand}
+                    isActive={isPlayerTurn && pi === game.currentPlayerIndex && hi === player.activeHandIndex}
+                    themeStyles={themeStyles}
+                    label={player.hands.length > 1 ? `Hand ${hi + 1}` : null}
+                    handIndex={hi}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Waiting for other player (multiplayer) */}
+        {isPlayerTurn && !isLocalPlayerTurn && isMultiplayer && (
+          <div style={{ textAlign: 'center', padding: 16 }}>
+            <span style={{ ...themeStyles?.textMuted, fontSize: 14 }}>
+              Waiting for {game.players[game.currentPlayerIndex]?.name}...
+            </span>
+          </div>
+        )}
+
+        {/* NPC thinking indicator */}
+        {isPlayerTurn && !isLocalPlayerTurn && !isMultiplayer && currentPlayer?.isNPC && (
+          <div style={{ textAlign: 'center', padding: 16 }}>
+            <span style={{ ...themeStyles?.textMuted, fontSize: 14 }}>
+              {currentPlayer.name} is thinking...
+            </span>
+          </div>
+        )}
+
+        {/* Dealer playing indicator */}
+        {(game.phase === GAME_PHASE.DEALER_TURN || game.phase === GAME_PHASE.RESOLVING) && (
+          <div style={{ textAlign: 'center', padding: 16 }}>
+            <span style={{ ...themeStyles?.textMuted, fontSize: 14 }}>
+              Dealer playing...
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* === BOTTOM ZONE — pinned === */}
+      <div style={styles.bottomZone}>
+        {/* Betting phase */}
+        {game.phase === GAME_PHASE.BETTING && (
+          <BlackjackBetting
+            players={game.players}
+            onPlaceBet={handlePlaceBet}
+            onDeal={handleDeal}
+            lastBet={game.lastBet}
+            localPlayerIndex={localPlayerIndex >= 0 ? localPlayerIndex : 0}
+            isHost={isHost}
+            themeStyles={themeStyles}
+          />
+        )}
+
+        {/* Player controls — only show when it's the local player's turn */}
+        {isLocalPlayerTurn && availableActions.length > 0 && (
+          <BlackjackControls
+            availableActions={availableActions}
+            onAction={handleAction}
+            hint={hint}
+            showHint={hintMode === 'before'}
+            themeStyles={themeStyles}
+          />
+        )}
+
+        {/* Results */}
+        {game.phase === GAME_PHASE.ROUND_OVER && (
+          <BlackjackResults
+            results={game.results}
+            onNewRound={isHost ? game.newRound : undefined}
+            showNewShoe={showNewShoe}
+            themeStyles={themeStyles}
+          />
+        )}
+
+        {/* Feedback bar (after-mode learning) */}
+        {feedback && (
+          <div style={{
+            ...styles.feedbackBar,
+            background: feedback.isCorrect
+              ? 'rgba(39,174,96,0.15)'
+              : 'rgba(231,76,60,0.15)',
+            border: `1px solid ${feedback.isCorrect
+              ? 'rgba(39,174,96,0.3)'
+              : 'rgba(231,76,60,0.3)'}`,
           }}>
-            <div style={{ ...themeStyles?.textMuted, fontSize: 11, textAlign: 'center' }}>
-              {player.name}
-              {pi === localPlayerIndex && hasNPCs ? ' (You)' : ''}
-              {isMultiplayer && pi === localPlayerIndex ? ' (You)' : ''}
-              {player.isNPC && <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.5 }}>NPC</span>}
-              {player.hands.length > 1 ? ` — Hand ${player.activeHandIndex + 1}/${player.hands.length}` : ''}
-              {(isMultiplayer || player.isNPC) && <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>${player.chips}</span>}
-            </div>
-            <div style={styles.handsRow}>
-              {player.hands.map((hand, hi) => (
-                <BlackjackHand
-                  key={hi}
-                  hand={hand}
-                  isActive={isPlayerTurn && pi === game.currentPlayerIndex && hi === player.activeHandIndex}
-                  themeStyles={themeStyles}
-                  label={player.hands.length > 1 ? `Hand ${hi + 1}` : null}
-                  handIndex={hi}
-                />
-              ))}
-            </div>
+            <span style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: feedback.isCorrect ? '#27ae60' : '#e74c3c',
+            }}>
+              {feedback.isCorrect ? '✓ Correct!' : '✗ Suboptimal'}
+            </span>
+            {!feedback.isCorrect && (
+              <span style={{ fontSize: 12, color: '#e67e22' }}>
+                Optimal: {ACTION_LABELS[feedback.optimalAction]} — {feedback.explanation}
+              </span>
+            )}
           </div>
-        ))}
-      </div>
+        )}
 
-      {/* Betting phase */}
-      {game.phase === GAME_PHASE.BETTING && (
-        <BlackjackBetting
-          players={game.players}
-          onPlaceBet={handlePlaceBet}
-          onDeal={handleDeal}
-          lastBet={game.lastBet}
-          localPlayerIndex={localPlayerIndex >= 0 ? localPlayerIndex : 0}
-          isHost={isHost}
-          themeStyles={themeStyles}
-        />
-      )}
-
-      {/* Player controls — only show when it's the local player's turn */}
-      {isLocalPlayerTurn && availableActions.length > 0 && (
-        <BlackjackControls
-          availableActions={availableActions}
-          onAction={handleAction}
-          hint={hint}
-          showHint={showHints}
-          themeStyles={themeStyles}
-        />
-      )}
-
-      {/* Waiting for other player (multiplayer) */}
-      {isPlayerTurn && !isLocalPlayerTurn && isMultiplayer && (
-        <div style={{ textAlign: 'center', padding: 16 }}>
-          <span style={{ ...themeStyles?.textMuted, fontSize: 14 }}>
-            Waiting for {game.players[game.currentPlayerIndex]?.name}...
+        {/* Stats bar */}
+        <div style={styles.statsBar}>
+          <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
+            Played: {game.stats.handsPlayed}
+          </span>
+          <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
+            Won: {game.stats.handsWon}
+          </span>
+          <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
+            BJ: {game.stats.blackjacks}
+          </span>
+          <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
+            {game.stats.handsPlayed > 0
+              ? `Win%: ${Math.round((game.stats.handsWon / game.stats.handsPlayed) * 100)}%`
+              : 'Win%: —'}
           </span>
         </div>
-      )}
-
-      {/* NPC thinking indicator */}
-      {isPlayerTurn && !isLocalPlayerTurn && !isMultiplayer && currentPlayer?.isNPC && (
-        <div style={{ textAlign: 'center', padding: 16 }}>
-          <span style={{ ...themeStyles?.textMuted, fontSize: 14 }}>
-            {currentPlayer.name} is thinking...
-          </span>
-        </div>
-      )}
-
-      {/* Dealer playing indicator */}
-      {(game.phase === GAME_PHASE.DEALER_TURN || game.phase === GAME_PHASE.RESOLVING) && (
-        <div style={{ textAlign: 'center', padding: 16 }}>
-          <span style={{ ...themeStyles?.textMuted, fontSize: 14 }}>
-            Dealer playing...
-          </span>
-        </div>
-      )}
-
-      {/* Results */}
-      {game.phase === GAME_PHASE.ROUND_OVER && (
-        <BlackjackResults
-          results={game.results}
-          onNewRound={isHost ? game.newRound : undefined}
-          showNewShoe={showNewShoe}
-          themeStyles={themeStyles}
-        />
-      )}
-
-      {/* Stats bar */}
-      <div style={styles.statsBar}>
-        <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
-          Played: {game.stats.handsPlayed}
-        </span>
-        <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
-          Won: {game.stats.handsWon}
-        </span>
-        <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
-          BJ: {game.stats.blackjacks}
-        </span>
-        <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
-          {game.stats.handsPlayed > 0
-            ? `Win%: ${Math.round((game.stats.handsWon / game.stats.handsPlayed) * 100)}%`
-            : 'Win%: —'}
-        </span>
       </div>
 
       {/* Rules modal */}
@@ -626,6 +697,19 @@ const styles = {
     flexDirection: 'column',
     flex: 1,
     width: '100%',
+    overflow: 'hidden',
+  },
+  topZone: {
+    flexShrink: 0,
+  },
+  middleZone: {
+    flex: 1,
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    minHeight: 0,
+  },
+  bottomZone: {
+    flexShrink: 0,
   },
   topBar: {
     display: 'flex',
@@ -701,7 +785,6 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     padding: '4px 0',
-    flex: 1,
     gap: 8,
   },
   playerSection: {
@@ -745,12 +828,20 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
   },
+  feedbackBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: '8px 16px',
+    margin: '0 12px',
+    borderRadius: 8,
+  },
   statsBar: {
     display: 'flex',
     justifyContent: 'center',
     gap: 16,
     padding: '8px 12px',
     borderTop: '1px solid rgba(255,255,255,0.06)',
-    marginTop: 'auto',
   },
 };
