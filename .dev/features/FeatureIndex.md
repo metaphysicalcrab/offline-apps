@@ -2,7 +2,7 @@
 
 > Master index of all documented features, systems, and utilities.
 > Claude Code: Scan this index to find the right doc before modifying a feature, system, or utility.
-> **Last updated:** 2026-03-21
+> **Last updated:** 2026-03-25
 
 ## Features
 
@@ -10,7 +10,7 @@
 
 | Name | One-liner | Doc |
 |------|-----------|-----|
-| Blackjack | Casino blackjack with full rules, practice tools, and multiplayer | — |
+| Blackjack | Casino blackjack with full rules, practice tools, multiplayer, and NPC players | — |
 | Free Draw | Basic deck drawing for any card game | — |
 | King's Cup | Drinking game with customizable rules per card rank | — |
 | High-Low | Guess if next card is higher or lower, track streaks | — |
@@ -24,6 +24,7 @@
 | Deck System | Card creation, shuffling, shoe management | `src/game/deck.js`, `src/game/blackjack.js` |
 | Multiplayer | PeerJS WebRTC peer-to-peer connections | `src/hooks/useMultiplayer.js` |
 | Strategy Engine | Basic strategy lookup and Hi-Lo card counting | `src/game/blackjackStrategy.js` |
+| NPC Player System | AI-controlled players for solo blackjack (betting, decisions, timing) | `src/game/npcPlayer.js` |
 
 ## Utilities
 
