@@ -14,6 +14,16 @@ FORMAT:
 - Decisions made (reference DEC-### in Decisions.md if logged)
 -->
 
+## 2026-03-25 — Add NPC Multiplayer to Solo Blackjack
+**Focus:** Add AI-controlled players to solo blackjack to simulate a real casino table
+- Created `src/game/npcPlayer.js` — NPC behavior module (names, betting, action selection using basic strategy with ~10% mistake rate)
+- Updated player model with `isNPC` flag, NPC auto-betting in NEW_ROUND, seat order shuffle each round
+- Added NPC configuration screen to BlackjackLobby (add/remove 0-5 NPCs before starting solo)
+- Added NPC auto-play effect in BlackjackGame with 800-1500ms delays per action for visual realism
+- NPCs auto-rebuy when chips run out, decline insurance (basic strategy), and get filtered from player stats
+- Human player seat position randomizes each round alongside NPCs
+- Existing solo (0 NPCs) and real multiplayer modes unaffected
+
 ## 2026-03-25 — Fix Multiplayer Room Joining
 **Focus:** Fix three bugs preventing multiplayer blackjack from working
 - Added PeerJS peer config with explicit STUN servers and 8-second connection timeout (was silently hanging forever when signaling server unreachable)

@@ -10,6 +10,7 @@ import {
   shouldOfferInsurance,
 } from '../game/blackjack.js';
 import { getHiLoValue } from '../game/blackjackStrategy.js';
+import { getNPCBet } from '../game/npcPlayer.js';
 
 function createInitialState(config) {
   return {
@@ -358,14 +359,47 @@ function reducer(state, action) {
         dealtCards = [];
       }
 
-      const players = state.players.map(p => ({
+      // Rebuy busted NPCs
+      let preppedPlayers = state.players.map(p => {
+        if (p.isNPC && p.chips < 5) {
+          return { ...p, chips: state.config.startingChips };
+        }
+        return p;
+      });
+
+      // Shuffle seat order when NPCs are present (randomize each round)
+      const hasNPCs = preppedPlayers.some(p => p.isNPC);
+      if (hasNPCs) {
+        const shuffled = [...preppedPlayers];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        preppedPlayers = shuffled;
+      }
+
+      const players = preppedPlayers.map(p => ({
         ...p,
-        hands: [{ cards: [], bet: 0, status: HAND_STATUS.PLAYING, isDoubled: false, insuranceBet: 0 }],
+        hands: [{
+          cards: [],
+          bet: p.isNPC ? getNPCBet(p.chips) : 0,
+          status: HAND_STATUS.PLAYING,
+          isDoubled: false,
+          insuranceBet: 0,
+        }],
         activeHandIndex: 0,
       }));
 
+      // Deduct NPC bets from their chips
+      const playersWithBets = players.map(p => {
+        if (p.isNPC && p.hands[0].bet > 0) {
+          return p; // Bet deducted at DEAL time
+        }
+        return p;
+      });
+
       return {
-        ...state, shoe, dealtCards, players,
+        ...state, shoe, dealtCards, players: playersWithBets,
         dealer: { cards: [], hidden: true },
         phase: GAME_PHASE.BETTING,
         currentPlayerIndex: 0,
@@ -395,6 +429,7 @@ function reducer(state, action) {
         players: [...state.players, {
           name,
           id: id || null,
+          isNPC: action.isNPC || false,
           chips: state.config.startingChips,
           hands: [{ cards: [], bet: 0, status: HAND_STATUS.PLAYING, isDoubled: false, insuranceBet: 0 }],
           activeHandIndex: 0,
@@ -472,10 +507,11 @@ export function useBlackjack() {
     }
   }, []);
 
-  // Save chips when round ends
+  // Save chips when round ends (find human player, not always index 0)
   useEffect(() => {
     if (state.phase === GAME_PHASE.ROUND_OVER) {
-      setSavedChips(state.players[0]?.chips ?? config.startingChips);
+      const human = state.players.find(p => !p.isNPC);
+      setSavedChips(human?.chips ?? config.startingChips);
     }
   }, [state.phase]);
 
@@ -495,13 +531,14 @@ export function useBlackjack() {
     }
   }, [state.phase]);
 
-  // Update stats when round ends
+  // Update stats when round ends (only count human player hands)
   useEffect(() => {
     if (state.phase === GAME_PHASE.ROUND_OVER && state.results) {
       setSavedStats(prev => {
         const newStats = { ...prev };
-        for (const player of state.results) {
-          for (const hand of player.hands) {
+        for (let i = 0; i < state.results.length; i++) {
+          if (state.players[i]?.isNPC) continue;
+          for (const hand of state.results[i].hands) {
             newStats.handsPlayed++;
             if (hand.result === 'win' || hand.result === 'blackjack') newStats.handsWon++;
             if (hand.result === 'blackjack') newStats.blackjacks++;
@@ -528,7 +565,7 @@ export function useBlackjack() {
   const declineInsurance = useCallback(() => dispatch({ type: 'DECLINE_INSURANCE' }), []);
   const newRound = useCallback(() => dispatch({ type: 'NEW_ROUND' }), []);
   const reset = useCallback(() => dispatch({ type: 'RESET' }), []);
-  const addPlayer = useCallback((name, id) => dispatch({ type: 'ADD_PLAYER', name, id }), []);
+  const addPlayer = useCallback((name, id, isNPC) => dispatch({ type: 'ADD_PLAYER', name, id, isNPC }), []);
   const removePlayer = useCallback((idxOrId) => {
     if (typeof idxOrId === 'string') {
       dispatch({ type: 'REMOVE_PLAYER', id: idxOrId });

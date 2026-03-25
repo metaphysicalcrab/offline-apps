@@ -3,7 +3,8 @@ import { GAME_PHASE, BLACKJACK_ACTIONS, HAND_STATUS } from '../constants.js';
 import { useBlackjack } from '../hooks/useBlackjack.js';
 import { useMultiplayer } from '../hooks/useMultiplayer.js';
 import { getOptimalAction, getActionExplanation } from '../game/blackjackStrategy.js';
-import { needsNewShoe } from '../game/blackjack.js';
+import { needsNewShoe, getAvailableActions as getAvailableActionsRaw } from '../game/blackjack.js';
+import { getNPCAction, getNPCActionDelay, getNPCBet } from '../game/npcPlayer.js';
 import BlackjackHand from './BlackjackHand.jsx';
 import BlackjackBetting from './BlackjackBetting.jsx';
 import BlackjackControls from './BlackjackControls.jsx';
@@ -47,7 +48,8 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
   // Derived state
   const localPlayerIndex = isMultiplayer
     ? game.players.findIndex(p => p.id === localPlayerId)
-    : 0;
+    : game.players.findIndex(p => !p.isNPC);
+  const hasNPCs = game.players.some(p => p.isNPC);
   const currentPlayer = game.players[game.currentPlayerIndex];
   const activeHand = currentPlayer?.hands[currentPlayer.activeHandIndex];
   const isPlayerTurn = game.phase === GAME_PHASE.PLAYER_TURN;
@@ -151,6 +153,46 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
     };
   }, [game.currentPlayerIndex, game.phase, isMultiplayer, multiplayer.isHost, isPlayerTurn]);
 
+  // --- NPC auto-play during player turn ---
+  useEffect(() => {
+    if (game.phase !== GAME_PHASE.PLAYER_TURN) return;
+    const cp = game.players[game.currentPlayerIndex];
+    if (!cp?.isNPC) return;
+    const hand = cp.hands[cp.activeHandIndex];
+    if (hand.status !== HAND_STATUS.PLAYING) return;
+
+    const actions = game.getAvailableActions(
+      hand, cp.hands.length, cp.chips,
+      hand.cards.length === 2 && !hand.isDoubled,
+    );
+    if (actions.length === 0) return;
+
+    const action = getNPCAction(hand, game.dealer.cards[0], actions);
+    const delay = getNPCActionDelay();
+
+    const timer = setTimeout(() => {
+      const g = gameRef.current;
+      const pi = g.currentPlayerIndex;
+      const hi = g.players[pi]?.activeHandIndex ?? 0;
+      switch (action) {
+        case BLACKJACK_ACTIONS.HIT: g.hit(pi, hi); break;
+        case BLACKJACK_ACTIONS.STAND: g.stand(pi, hi); break;
+        case BLACKJACK_ACTIONS.DOUBLE: g.double(pi, hi); break;
+        case BLACKJACK_ACTIONS.SPLIT: g.split(pi, hi); break;
+        case BLACKJACK_ACTIONS.SURRENDER: g.surrender(pi, hi); break;
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [game.phase, game.currentPlayerIndex, game.players]);
+
+  // --- NPC auto-handle insurance (always decline) ---
+  useEffect(() => {
+    if (game.phase !== GAME_PHASE.INSURANCE || !hasNPCs) return;
+    // Insurance is handled for all players at once; just let human decide
+    // NPCs don't need separate handling — the reducer applies to all
+  }, [game.phase, hasNPCs]);
+
   // Get available actions for current hand
   const availableActions = isPlayerTurn && activeHand
     ? game.getAvailableActions(
@@ -225,11 +267,23 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
     audio?.playFlip();
   }, [game, audio]);
 
-  const handleStartSolo = useCallback(() => {
+  const handleStartSolo = useCallback((npcNames = []) => {
     setIsMultiplayer(false);
     setLocalPlayerId(null);
+    for (const name of npcNames) {
+      game.addPlayer(name, null, true);
+    }
+    // Place initial NPC bets (subsequent rounds handled by NEW_ROUND)
+    setTimeout(() => {
+      const g = gameRef.current;
+      g.players.forEach((p, i) => {
+        if (p.isNPC && p.hands[0]?.bet === 0) {
+          g.placeBet(i, getNPCBet(p.chips));
+        }
+      });
+    }, 0);
     setInLobby(false);
-  }, []);
+  }, [game]);
 
   const handleStartMultiplayer = useCallback(({ isHost: startAsHost }) => {
     setIsMultiplayer(true);
@@ -442,13 +496,15 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
         {game.players.map((player, pi) => (
           <div key={pi} style={{
             ...styles.playerSection,
-            ...(isMultiplayer && pi === localPlayerIndex ? styles.localPlayerSection : {}),
+            ...((isMultiplayer || hasNPCs) && pi === localPlayerIndex ? styles.localPlayerSection : {}),
           }}>
             <div style={{ ...themeStyles?.textMuted, fontSize: 11, textAlign: 'center' }}>
               {player.name}
+              {pi === localPlayerIndex && hasNPCs ? ' (You)' : ''}
               {isMultiplayer && pi === localPlayerIndex ? ' (You)' : ''}
+              {player.isNPC && <span style={{ marginLeft: 4, fontSize: 10, opacity: 0.5 }}>NPC</span>}
               {player.hands.length > 1 ? ` — Hand ${player.activeHandIndex + 1}/${player.hands.length}` : ''}
-              {isMultiplayer && <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>${player.chips}</span>}
+              {(isMultiplayer || player.isNPC) && <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>${player.chips}</span>}
             </div>
             <div style={styles.handsRow}>
               {player.hands.map((hand, hi) => (
@@ -495,6 +551,15 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
         <div style={{ textAlign: 'center', padding: 16 }}>
           <span style={{ ...themeStyles?.textMuted, fontSize: 14 }}>
             Waiting for {game.players[game.currentPlayerIndex]?.name}...
+          </span>
+        </div>
+      )}
+
+      {/* NPC thinking indicator */}
+      {isPlayerTurn && !isLocalPlayerTurn && !isMultiplayer && currentPlayer?.isNPC && (
+        <div style={{ textAlign: 'center', padding: 16 }}>
+          <span style={{ ...themeStyles?.textMuted, fontSize: 14 }}>
+            {currentPlayer.name} is thinking...
           </span>
         </div>
       )}

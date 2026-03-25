@@ -20,4 +20,12 @@ TEMPLATE — Copy for each new proposal:
 - **Related:** DEC-xxx if accepted, L-xxx for relevant learnings
 -->
 
-<!-- Entries added as ideas emerge. Newest at bottom. -->
+## PRO-001 — NPC Multiplayer for Solo Blackjack
+- **Date:** 2026-03-25
+- **Status:** Accepted
+- **Type:** Feature
+- **Summary:** Add AI-controlled NPC players to the solo blackjack table to simulate a real casino environment with multiple players.
+- **Motivation:** Solo blackjack is 1v1 against the dealer, which doesn't capture the feel of a real casino table. NPCs add visual activity, affect shoe depletion, and make practice more immersive.
+- **Approach:** NPCs use `isNPC` flag on existing player model. Leverage `getOptimalAction()` from strategy engine for NPC decisions (~90% accuracy). Auto-bet proportional to chips with randomization. Staggered delays for visual realism. Seat order randomizes each round. Configurable 0-5 NPCs from lobby.
+- **Outcome:** Implemented. New file `src/game/npcPlayer.js`, changes to useBlackjack.js reducer, BlackjackLobby.jsx, and BlackjackGame.jsx.
+- **Related:** —

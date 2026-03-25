@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getRandomNPCName } from '../game/npcPlayer.js';
 
 export default function BlackjackLobby({
   multiplayer,
@@ -12,10 +13,26 @@ export default function BlackjackLobby({
       onStartMultiplayer({ isHost: false });
     }
   }, [multiplayer.gameState, multiplayer.isHost]);
-  const [mode, setMode] = useState(null); // null, 'create', 'join'
+  const [mode, setMode] = useState(null); // null, 'solo', 'create', 'join'
   const [playerName, setPlayerName] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [npcPlayers, setNpcPlayers] = useState([]);
+
+  const addNPC = () => {
+    if (npcPlayers.length >= 5) return;
+    const existingNames = ['You', ...npcPlayers];
+    const name = getRandomNPCName(existingNames);
+    setNpcPlayers([...npcPlayers, name]);
+  };
+
+  const removeNPC = (index) => {
+    setNpcPlayers(npcPlayers.filter((_, i) => i !== index));
+  };
+
+  const handleStartWithNPCs = () => {
+    onStartSolo(npcPlayers);
+  };
 
   const handleCreate = () => {
     if (!playerName.trim()) return;
@@ -166,6 +183,70 @@ export default function BlackjackLobby({
     );
   }
 
+  // Solo setup flow — configure NPCs
+  if (mode === 'solo') {
+    return (
+      <div style={styles.container}>
+        <div style={styles.card}>
+          <div style={{ ...themeStyles?.text, fontSize: 16, fontWeight: 600, textAlign: 'center' }}>
+            Table Setup
+          </div>
+          <div style={{ ...themeStyles?.textMuted, fontSize: 12, textAlign: 'center' }}>
+            Add AI players to simulate a full table
+          </div>
+
+          <div style={styles.playersList}>
+            <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>
+              Players ({1 + npcPlayers.length}/6)
+            </span>
+            <div style={{ ...styles.playerBadge, ...themeStyles?.playerBadge }}>
+              <span>You</span>
+              <span style={{ fontSize: 10, opacity: 0.6 }}>(Player)</span>
+            </div>
+            {npcPlayers.map((name, i) => (
+              <div key={i} style={{ ...styles.playerBadge, ...themeStyles?.playerBadge }}>
+                <span>{name}</span>
+                <span style={{ fontSize: 10, opacity: 0.6 }}>(NPC)</span>
+                <button
+                  onClick={() => removeNPC(i)}
+                  style={styles.kickBtn}
+                  aria-label={`Remove ${name}`}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {npcPlayers.length < 5 && (
+            <button
+              onClick={addNPC}
+              style={{ ...styles.addNpcBtn, ...themeStyles?.button }}
+              aria-label="Add NPC player"
+            >
+              + Add NPC
+            </button>
+          )}
+
+          <div style={styles.actions}>
+            <button
+              onClick={() => { setMode(null); setNpcPlayers([]); }}
+              style={{ ...styles.btn, ...themeStyles?.button }}
+            >
+              Back
+            </button>
+            <button
+              onClick={handleStartWithNPCs}
+              style={{ ...styles.btn, ...themeStyles?.buttonPrimary, flex: 1 }}
+            >
+              Start Game
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Main lobby menu
   return (
     <div style={styles.container}>
@@ -181,13 +262,13 @@ export default function BlackjackLobby({
         </div>
 
         <button
-          onClick={onStartSolo}
+          onClick={() => setMode('solo')}
           style={{ ...styles.menuBtn, ...themeStyles?.buttonPrimary }}
         >
           <span style={{ fontSize: 20 }}>🎯</span>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Play Solo</div>
-            <div style={{ fontSize: 11, opacity: 0.7 }}>Practice against the dealer</div>
+            <div style={{ fontSize: 11, opacity: 0.7 }}>Practice with optional NPC players</div>
           </div>
         </button>
 
@@ -299,5 +380,16 @@ const styles = {
     padding: '6px 12px',
     background: 'rgba(231,76,60,0.1)',
     borderRadius: 8,
+  },
+  addNpcBtn: {
+    padding: '10px 16px',
+    borderRadius: 10,
+    border: '1px dashed currentColor',
+    background: 'none',
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: 'pointer',
+    opacity: 0.7,
+    transition: 'all 0.15s',
   },
 };
