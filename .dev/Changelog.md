@@ -14,6 +14,12 @@ FORMAT:
 - Decisions made (reference DEC-### in Decisions.md if logged)
 -->
 
+## 2026-03-28 — Fix Multiplayer Connection & Landscape Layout
+**Focus:** Fix two bugs — multiplayer join failing and broken landscape mode
+- Added TURN servers (Open Relay Project) to ICE config — STUN-only failed on mobile symmetric NATs
+- Added retry logic (3 attempts with exponential backoff) for initial connection, not just reconnection
+- Replaced landscape CSS rotation hack (broke touch/scroll) with a "rotate to portrait" overlay using `#root::after`
+
 ## 2026-03-25 — Auto-scroll to Active Player
 **Focus:** Reduce scrolling fatigue by auto-scrolling to the active player's hand
 - Added refs to middle zone and player sections

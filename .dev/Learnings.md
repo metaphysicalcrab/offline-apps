@@ -20,6 +20,24 @@ TEMPLATE — Copy for each new learning:
 - **Related:** Links to code, decisions, other learnings, or external resources.
 -->
 
+## L-005 — WebRTC needs TURN servers for mobile-to-mobile connections
+- **Date:** 2026-03-28
+- **Category:** Bug
+- **Severity:** High
+- **What happened:** Multiplayer join always timed out with "Could not connect to host" when both peers were on mobile networks.
+- **Root cause:** Only STUN servers configured. STUN cannot traverse symmetric NATs (common on mobile/carrier networks). A TURN relay server is required as fallback.
+- **Solution/Workaround:** Added Open Relay Project free TURN servers (ports 80, 443, and TCP 443) to ICE config.
+- **Prevention:** Always include TURN servers in WebRTC ICE config, not just STUN.
+
+## L-006 — CSS transform rotation breaks touch and scroll on mobile
+- **Date:** 2026-03-28
+- **Category:** Bug
+- **Severity:** High
+- **What happened:** Landscape mode used `transform: rotate(-90deg)` on `#root > div` to force portrait layout, but this broke touch events, scroll direction, and safe areas.
+- **Root cause:** CSS transforms don't affect the coordinate system for pointer events or scroll axes — the browser still uses the original (pre-transform) layout.
+- **Solution/Workaround:** Replaced with a fixed overlay (`#root::after`) prompting users to rotate to portrait. No JS needed.
+- **Prevention:** Never use CSS transforms to change app orientation. Use a blocking overlay or proper responsive layouts instead.
+
 ## L-004 — minHeight breaks nested flex scroll containment
 - **Date:** 2026-03-25
 - **Category:** Bug

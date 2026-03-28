@@ -29,6 +29,21 @@ const PEER_CONFIG = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
+      {
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject',
+      },
     ],
   },
 };
@@ -183,9 +198,22 @@ export function useMultiplayer() {
     connTimeoutRef.current = setTimeout(() => {
       if (!conn.open) {
         conn.close();
-        setIsConnecting(false);
-        setError('Could not connect to host. The room may no longer exist.');
-        setConnectionStatus('disconnected');
+        if (reconnectAttemptRef.current < MAX_RECONNECT_ATTEMPTS) {
+          setConnectionStatus('reconnecting');
+          const attempt = reconnectAttemptRef.current + 1;
+          setError(`Connecting... (attempt ${attempt}/${MAX_RECONNECT_ATTEMPTS})`);
+          const delay = RECONNECT_DELAYS[reconnectAttemptRef.current] || 4000;
+          reconnectAttemptRef.current++;
+          reconnectTimerRef.current = setTimeout(() => {
+            if (peerRef.current && !peerRef.current.destroyed) {
+              connectToHost(peerRef.current, code, playerName);
+            }
+          }, delay);
+        } else {
+          setIsConnecting(false);
+          setError('Could not connect to host. The room may no longer exist.');
+          setConnectionStatus('disconnected');
+        }
       }
     }, PEER_CONNECT_TIMEOUT_MS);
 
