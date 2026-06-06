@@ -119,7 +119,7 @@ export default function BlackjackHand({ hand, isActive, isDealer, hidden, themeS
         {label && <span style={{ ...themeStyles?.textMuted, fontSize: 11 }}>{label}</span>}
         {hand.bet > 0 && !isDealer && (
           <span style={{ ...themeStyles?.textAccent, fontSize: 11 }}>
-            ${hand.isDoubled ? hand.bet * 2 : hand.bet}
+            ${hand.bet}
           </span>
         )}
       </div>

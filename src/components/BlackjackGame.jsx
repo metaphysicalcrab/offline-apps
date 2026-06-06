@@ -773,6 +773,11 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
             hint={hint}
             showHint={hintMode === 'before'}
             themeStyles={themeStyles}
+            doubleForLessAmount={
+              activeHand && currentPlayer.chips < activeHand.bet
+                ? currentPlayer.chips
+                : null
+            }
           />
         )}
 

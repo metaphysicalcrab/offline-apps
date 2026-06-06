@@ -97,21 +97,33 @@ function reducer(state, action) {
       // into a dealer blackjack and lose extra.
       let phase = GAME_PHASE.PLAYER_TURN;
       const dealerHasBlackjack = isBlackjack(dealer.cards);
-      const allBlackjack = updatedPlayers.every(p => p.hands[0].status === HAND_STATUS.BLACKJACK);
+      const firstPlayable = findFirstPlayableHand(updatedPlayers);
 
       if (state.config.insuranceAllowed && shouldOfferInsurance(dealer.cards)) {
         // Ace showing — offer insurance first; the peek is deferred until the
         // insurance decision is resolved (see TAKE/DECLINE_INSURANCE).
         phase = GAME_PHASE.INSURANCE;
-      } else if (dealerHasBlackjack || allBlackjack) {
-        // Dealer peeked into a natural, or every player has blackjack — no
-        // player decisions remain, so go straight to the dealer reveal.
+      } else if (dealerHasBlackjack || !firstPlayable) {
+        // Dealer peeked into a natural, or no hand needs a decision (e.g. every
+        // player drew blackjack) — go straight to the dealer reveal.
         phase = GAME_PHASE.DEALER_TURN;
       }
 
+      // Position the turn on the first hand that actually needs action so a
+      // leading player dealt blackjack doesn't leave the turn stuck on a
+      // resolved hand (advanceToNextHand only ever moves forward).
+      let turnPlayers = updatedPlayers;
+      let currentPlayerIndex = 0;
+      if (phase === GAME_PHASE.PLAYER_TURN && firstPlayable) {
+        currentPlayerIndex = firstPlayable.playerIndex;
+        turnPlayers = updatedPlayers.map((p, i) =>
+          i === currentPlayerIndex ? { ...p, activeHandIndex: firstPlayable.handIndex } : p
+        );
+      }
+
       return {
-        ...state, shoe, dealtCards, dealer, players: updatedPlayers,
-        phase, currentPlayerIndex: 0, message: null, results: null,
+        ...state, shoe, dealtCards, dealer, players: turnPlayers,
+        phase, currentPlayerIndex, message: null, results: null,
       };
     }
 
@@ -134,16 +146,23 @@ function reducer(state, action) {
       // Insurance is settled — now the dealer peeks. If the dealer has a
       // natural (or every player already stands pat) the round ends before
       // any player acts.
-      const allDone = players.every(p =>
-        p.hands.every(h => h.status !== HAND_STATUS.PLAYING)
-      );
       const dealerHasBlackjack = isBlackjack(state.dealer.cards);
+      const firstPlayable = findFirstPlayableHand(players);
 
+      if (dealerHasBlackjack || !firstPlayable) {
+        return { ...state, players, phase: GAME_PHASE.DEALER_TURN, currentPlayerIndex: 0 };
+      }
+
+      // Position the turn on the first hand needing action (skipping any
+      // leading blackjacks) so the round doesn't stall on a resolved hand.
+      const positioned = players.map((p, i) =>
+        i === firstPlayable.playerIndex ? { ...p, activeHandIndex: firstPlayable.handIndex } : p
+      );
       return {
         ...state,
-        players,
-        phase: (allDone || dealerHasBlackjack) ? GAME_PHASE.DEALER_TURN : GAME_PHASE.PLAYER_TURN,
-        currentPlayerIndex: 0,
+        players: positioned,
+        phase: GAME_PHASE.PLAYER_TURN,
+        currentPlayerIndex: firstPlayable.playerIndex,
       };
     }
 
@@ -216,8 +235,13 @@ function reducer(state, action) {
       const hands = [...player.hands];
       const hand = { ...hands[handIndex] };
 
-      // Deduct additional bet
-      player.chips -= hand.bet;
+      // Deduct the additional wager. Normally this matches the original bet,
+      // but if the player is short on chips they "double for less" — staking
+      // whatever they have left (down to nothing). Fold it into hand.bet so the
+      // hand carries its full committed wager for payout/display.
+      const extraBet = Math.min(hand.bet, player.chips);
+      player.chips -= extraBet;
+      hand.bet += extraBet;
       hand.cards = [...hand.cards, result.card];
       hand.isDoubled = true;
       hand.status = isBusted(hand.cards) ? HAND_STATUS.BUST : HAND_STATUS.STAND;
@@ -359,7 +383,7 @@ function reducer(state, action) {
           cards: h.cards,
           result: h.result,
           payout: h.payout,
-          bet: h.isDoubled ? h.bet * 2 : h.bet,
+          bet: h.bet,
         })),
         chips: p.chips,
       }));
@@ -477,6 +501,22 @@ function reducer(state, action) {
     default:
       return state;
   }
+}
+
+// Scan all players in seat order for the first hand still awaiting a decision.
+// Used to position the turn when entering PLAYER_TURN so a leading player who
+// was dealt a blackjack (or otherwise stands pat) doesn't stall the round —
+// their already-resolved hand would never be advanced past otherwise. Returns
+// { playerIndex, handIndex } or null when no hand needs action.
+function findFirstPlayableHand(players) {
+  for (let p = 0; p < players.length; p++) {
+    for (let h = 0; h < players[p].hands.length; h++) {
+      if (players[p].hands[h].status === HAND_STATUS.PLAYING) {
+        return { playerIndex: p, handIndex: h };
+      }
+    }
+  }
+  return null;
 }
 
 function advanceToNextHand(state) {
