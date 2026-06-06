@@ -34,11 +34,16 @@ export default function BlackjackBetting({
   lastBet,
   localPlayerIndex = 0,
   isHost = true,
+  onRecharge,
+  canRecharge = false,
+  rechargeAmount = 500,
+  balancePulse = false,
   themeStyles,
 }) {
   const player = players[localPlayerIndex] || players[0];
   const currentBet = player?.hands[0]?.bet || 0;
   const allBetsPlaced = players.every(p => p.hands[0]?.bet > 0);
+  const isBroke = player.chips <= 0 && currentBet === 0;
 
   const addChip = (value) => {
     const newBet = currentBet + value;
@@ -147,8 +152,39 @@ export default function BlackjackBetting({
         </div>
       )}
 
-      <div style={{ ...themeStyles?.textMuted, fontSize: 12, textAlign: 'center' }}>
-        Balance: ${player.chips}
+      {isBroke && (
+        <div style={{ ...themeStyles?.text, fontSize: 12, textAlign: 'center', color: '#e74c3c' }}>
+          You're out of chips — add funds to keep playing.
+        </div>
+      )}
+
+      <div style={styles.balanceRow}>
+        <span style={{ ...themeStyles?.textMuted, fontSize: 12 }}>
+          Balance:{' '}
+          <span
+            className={balancePulse ? 'bj-balance-pulse' : undefined}
+            style={{
+              ...themeStyles?.textAccent,
+              fontWeight: 700,
+              display: 'inline-block',
+              animation: balancePulse ? 'bjBalancePulse 0.6s ease-out' : undefined,
+            }}
+          >
+            ${player.chips}
+          </span>
+        </span>
+        {canRecharge && onRecharge && (
+          <button
+            onClick={onRecharge}
+            style={{
+              ...styles.rechargeBtn,
+              ...(isBroke ? themeStyles?.buttonPrimary : themeStyles?.button),
+            }}
+            aria-label={`Add $${rechargeAmount} chips`}
+          >
+            ＋ Add ${rechargeAmount}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -229,5 +265,20 @@ const styles = {
     padding: '4px 10px',
     borderRadius: 8,
     minWidth: 60,
+  },
+  balanceRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  rechargeBtn: {
+    padding: '6px 12px',
+    borderRadius: 10,
+    border: 'none',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
   },
 };

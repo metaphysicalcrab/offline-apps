@@ -104,6 +104,8 @@ export const BLACKJACK_RANK_VALUES = {
 
 export const CHIP_DENOMINATIONS = [5, 25, 100, 500];
 
+export const BLACKJACK_RECHARGE_AMOUNT = 500;
+
 export const DEFAULT_KINGS_CUP_RULES = {
   A: { title: 'Waterfall', desc: 'Everyone drinks in order. You can\'t stop until the person before you stops.' },
   2: { title: 'You', desc: 'Pick someone to drink.' },

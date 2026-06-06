@@ -19,6 +19,17 @@ TEMPLATE — Copy for each new decision:
 - **Related:** Links to relevant learnings, architecture sections, or other decisions.
 -->
 
+## DEC-005 — Dealer Peeks for Blackjack (US "Peek" Rules)
+- **Date:** 2026-06-06
+- **Status:** Accepted
+- **Context:** When the dealer's upcard was a ten-value card, the game still routed to the player turn even though the dealer held a natural. Players could then hit, double, or split into a guaranteed dealer blackjack and lose more than their original wager. With an Ace upcard, insurance was offered but the peek still never happened. This is incorrect under standard US table rules and contradicts the basic-strategy trainer, which assumes peek.
+- **Options Considered:**
+  1. **No peek (European/ENHC rules)** — Pros: simplest / Cons: punishes doubles/splits against dealer naturals, surprising to most players, mismatched with the strategy engine.
+  2. **Peek for blackjack (US rules)** — Pros: matches the strategy engine and player expectations, prevents over-committing chips / Cons: slightly more reducer branching.
+- **Decision:** Dealer peeks. In `DEAL`, when the upcard is ten-value and the dealer has a natural (or every player has blackjack), the round goes straight to `DEALER_TURN`. When the upcard is an Ace, insurance is offered first and the peek is deferred to the `TAKE_INSURANCE` / `DECLINE_INSURANCE` handlers, which route to `DEALER_TURN` if the dealer has blackjack. Hole-card reveal and count tracking continue to flow through `DEALER_PLAY`.
+- **Consequences:** Player decisions can no longer be made against a known dealer natural. Basic-strategy hints/feedback now align with actual outcomes. The insurance flow is unchanged for the player; only post-decision routing gained a blackjack check.
+- **Related:** DEC-004, `src/hooks/useBlackjack.js`
+
 ## DEC-004 — Host-Authoritative State Sync for Multiplayer
 - **Date:** 2026-03-24
 - **Status:** Accepted

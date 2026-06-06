@@ -14,6 +14,23 @@ FORMAT:
 - Decisions made (reference DEC-### in Decisions.md if logged)
 -->
 
+## 2026-06-06 — Blackjack: Haptic Feedback
+**Focus:** Wire the previously-unused haptics into the blackjack table (mobile polish)
+- `haptics` was passed into BlackjackGame but never used despite the infra existing in every other mode
+- Added tap haptics on player actions (hit/stand/double/split/surrender), chip taps/bets, deal, insurance, next hand, and recharge
+- Added round-outcome haptics for the local player: success on a net win, fail on a net loss, a distinct celebratory buzz on a natural blackjack, nothing on a push
+- All routed through the existing `vibrate` helper, which self-guards on the user's haptics-enabled setting and `navigator.vibrate` support
+
+## 2026-06-06 — Blackjack: Top Helper Banner, Mid-Game Recharge, Dealer Peek
+**Focus:** UX visibility fix, a way to top up funds, and a rules-correctness fix
+- Moved the strategy helper/feedback banner into the pinned top zone so it's always visible regardless of scroll position or seat in the turn order
+- Fixed after-mode feedback being wiped instantly when the last player acted — feedback now persists (cleared only when a new betting round begins) and auto-dismisses after 3s
+- Added mid-game recharge: "＋ Add $500" button in betting plus a broke-state prompt in betting and results; only the host/solo player can recharge
+- Added session net P&L to the stats bar (current chips − total buy-in, tracked in-memory and reset on table leave)
+- Dealer now peeks for blackjack (US rules) so players can't hit/double/split into a dealer natural — see DEC-005
+- Visual polish: banner slide-in animation and a balance pulse on top-up (both respect prefers-reduced-motion)
+- Decisions made: DEC-005 (dealer peek)
+
 ## 2026-03-25 — Auto-scroll to Active Player
 **Focus:** Reduce scrolling fatigue by auto-scrolling to the active player's hand
 - Added refs to middle zone and player sections

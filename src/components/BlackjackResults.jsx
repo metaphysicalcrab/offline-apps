@@ -1,7 +1,19 @@
 import React from 'react';
 
-export default function BlackjackResults({ results, onNewRound, onNewShoe, showNewShoe, themeStyles }) {
+export default function BlackjackResults({
+  results,
+  onNewRound,
+  onNewShoe,
+  showNewShoe,
+  localChips = null,
+  onRecharge,
+  canRecharge = false,
+  rechargeAmount = 500,
+  themeStyles,
+}) {
   if (!results) return null;
+
+  const isBroke = canRecharge && localChips !== null && localChips <= 0;
 
   return (
     <div style={styles.container}>
@@ -42,7 +54,21 @@ export default function BlackjackResults({ results, onNewRound, onNewShoe, showN
         </div>
       ))}
 
+      {isBroke && (
+        <div style={{ ...themeStyles?.text, fontSize: 12, textAlign: 'center', color: '#e74c3c' }}>
+          You're out of chips. Add funds to keep playing.
+        </div>
+      )}
+
       <div style={styles.actions}>
+        {isBroke && onRecharge && (
+          <button
+            onClick={onRecharge}
+            style={{ ...styles.btn, ...themeStyles?.buttonPrimary }}
+          >
+            ＋ Add ${rechargeAmount}
+          </button>
+        )}
         {onNewRound ? (
           <button
             onClick={onNewRound}
