@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { GAME_PHASE, BLACKJACK_ACTIONS, HAND_STATUS, BLACKJACK_RECHARGE_AMOUNT } from '../constants.js';
+import { GAME_PHASE, BLACKJACK_ACTIONS, HAND_STATUS, BLACKJACK_RECHARGE_AMOUNT, HAPTIC_PATTERNS } from '../constants.js';
 import { useBlackjack } from '../hooks/useBlackjack.js';
 import { useMultiplayer } from '../hooks/useMultiplayer.js';
 import { getOptimalAction, getActionExplanation } from '../game/blackjackStrategy.js';
@@ -32,6 +32,10 @@ const TURN_TIMEOUT_MS = 30000;
 const ACTION_LABELS = {
   hit: 'Hit', stand: 'Stand', double: 'Double', split: 'Split', surrender: 'Surrender',
 };
+
+// Distinct celebratory buzz for a natural blackjack — a touch richer than the
+// standard "success" pattern used for an ordinary winning round.
+const BLACKJACK_HAPTIC = [12, 30, 12, 30, 40];
 
 // Inject keyframes for the top helper banner and balance pulse once.
 let bjGameStylesInjected = false;
@@ -242,6 +246,23 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
     if (game.phase === GAME_PHASE.BETTING) setFeedback(null);
   }, [game.phase]);
 
+  // Haptic feedback on the round outcome for the local player: a celebratory
+  // buzz for a natural, success for a net win, fail for a net loss, nothing on
+  // a push. The vibrate helper self-guards on the user's haptics setting.
+  useEffect(() => {
+    if (game.phase !== GAME_PHASE.ROUND_OVER || !game.results) return;
+    const res = game.results[localPlayerIndex];
+    if (!res) return;
+    let net = 0;
+    let hadBlackjack = false;
+    for (const h of res.hands) {
+      net += (h.payout || 0) - (h.bet || 0);
+      if (h.result === 'blackjack') hadBlackjack = true;
+    }
+    if (net > 0) haptics?.vibrate?.(hadBlackjack ? BLACKJACK_HAPTIC : HAPTIC_PATTERNS.success);
+    else if (net < 0) haptics?.vibrate?.(HAPTIC_PATTERNS.fail);
+  }, [game.phase]);
+
   // Auto-scroll to active player
   useEffect(() => {
     if (game.phase !== GAME_PHASE.PLAYER_TURN) return;
@@ -279,6 +300,8 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
   const hint = hintMode === 'before' ? computedHint : null;
 
   const handleAction = useCallback((action) => {
+    haptics?.vibrate?.(HAPTIC_PATTERNS.tap);
+
     // After-mode feedback: compare action to stored optimal
     if (hintMode === 'after' && optimalActionRef.current) {
       const { action: optimalAction, explanation } = optimalActionRef.current;
@@ -320,29 +343,37 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
         game.surrender(pi, hi);
         break;
     }
-  }, [game, currentPlayer, audio, isMultiplayer, multiplayer, hintMode]);
+  }, [game, currentPlayer, audio, haptics, isMultiplayer, multiplayer, hintMode]);
 
   const handlePlaceBet = useCallback((playerIndex, amount) => {
+    haptics?.vibrate?.(HAPTIC_PATTERNS.tap);
     if (isMultiplayer && !multiplayer.isHost) {
       multiplayer.sendAction({ type: 'PLACE_BET', amount });
       return;
     }
     game.placeBet(playerIndex, amount);
-  }, [game, isMultiplayer, multiplayer]);
+  }, [game, haptics, isMultiplayer, multiplayer]);
 
   const handleInsurance = useCallback((accept) => {
+    haptics?.vibrate?.(HAPTIC_PATTERNS.tap);
     if (isMultiplayer && !multiplayer.isHost) {
       multiplayer.sendAction({ type: accept ? 'TAKE_INSURANCE' : 'DECLINE_INSURANCE' });
       return;
     }
     if (accept) game.takeInsurance();
     else game.declineInsurance();
-  }, [game, isMultiplayer, multiplayer]);
+  }, [game, haptics, isMultiplayer, multiplayer]);
 
   const handleDeal = useCallback(() => {
+    haptics?.vibrate?.(HAPTIC_PATTERNS.tap);
     game.deal();
     audio?.playFlip();
-  }, [game, audio]);
+  }, [game, audio, haptics]);
+
+  const handleNewRound = useCallback(() => {
+    haptics?.vibrate?.(HAPTIC_PATTERNS.tap);
+    game.newRound();
+  }, [game, haptics]);
 
   const handleRecharge = useCallback(() => {
     // Recharge tops up the local human's stack. Only the host/solo player can
@@ -352,7 +383,8 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
     game.recharge(idx, BLACKJACK_RECHARGE_AMOUNT);
     setBalancePulse(true);
     audio?.playSuccess?.();
-  }, [game, localPlayerIndex, isMultiplayer, multiplayer.isHost, audio]);
+    haptics?.vibrate?.(HAPTIC_PATTERNS.success);
+  }, [game, localPlayerIndex, isMultiplayer, multiplayer.isHost, audio, haptics]);
 
   // Clear the balance pulse once the animation has played.
   useEffect(() => {
@@ -748,7 +780,7 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
         {game.phase === GAME_PHASE.ROUND_OVER && (
           <BlackjackResults
             results={game.results}
-            onNewRound={isHost ? game.newRound : undefined}
+            onNewRound={isHost ? handleNewRound : undefined}
             showNewShoe={showNewShoe}
             localChips={localPlayer?.chips ?? 0}
             onRecharge={handleRecharge}
