@@ -18,13 +18,8 @@ export default function BlackjackControls({
 }) {
   return (
     <div style={styles.container}>
-      {showHint && hint && (
-        <div style={styles.hintBar}>
-          <span style={{ fontSize: 12, color: '#f1c40f' }}>
-            Suggested: {ACTION_CONFIG[hint.action]?.label} — {hint.explanation}
-          </span>
-        </div>
-      )}
+      {/* The strategy suggestion text is shown in the pinned top banner; here we
+          only highlight the suggested button so it stays close to the action. */}
       <div style={styles.actionsRow}>
         {availableActions.map(action => {
           const cfg = ACTION_CONFIG[action];
@@ -59,13 +54,6 @@ const styles = {
     gap: 6,
     padding: '8px 16px 16px',
     width: '100%',
-  },
-  hintBar: {
-    textAlign: 'center',
-    padding: '6px 12px',
-    background: 'rgba(241,196,0,0.1)',
-    borderRadius: 8,
-    border: '1px solid rgba(241,196,0,0.2)',
   },
   actionsRow: {
     display: 'flex',

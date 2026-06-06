@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { GAME_PHASE, BLACKJACK_ACTIONS, HAND_STATUS } from '../constants.js';
+import { GAME_PHASE, BLACKJACK_ACTIONS, HAND_STATUS, BLACKJACK_RECHARGE_AMOUNT } from '../constants.js';
 import { useBlackjack } from '../hooks/useBlackjack.js';
 import { useMultiplayer } from '../hooks/useMultiplayer.js';
 import { getOptimalAction, getActionExplanation } from '../game/blackjackStrategy.js';
@@ -33,6 +33,29 @@ const ACTION_LABELS = {
   hit: 'Hit', stand: 'Stand', double: 'Double', split: 'Split', surrender: 'Surrender',
 };
 
+// Inject keyframes for the top helper banner and balance pulse once.
+let bjGameStylesInjected = false;
+function injectGameStyles() {
+  if (bjGameStylesInjected || typeof document === 'undefined') return;
+  bjGameStylesInjected = true;
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes bjBannerIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes bjBalancePulse {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.18); }
+      100% { transform: scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bj-banner, .bj-balance-pulse { animation: none !important; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 export default function BlackjackGame({ themeStyles, audio, haptics }) {
   const game = useBlackjack();
   const multiplayer = useMultiplayer();
@@ -46,6 +69,9 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
   const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [localPlayerId, setLocalPlayerId] = useState(null);
   const [turnTimeLeft, setTurnTimeLeft] = useState(null);
+  const [balancePulse, setBalancePulse] = useState(false);
+
+  useEffect(injectGameStyles, []);
 
   // Refs for stable access in callbacks
   const gameRef = useRef(game);
@@ -208,9 +234,12 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
     return () => clearTimeout(timer);
   }, [feedback]);
 
-  // Clear feedback on phase changes
+  // Clear feedback only when a new round begins. (Previously this cleared on
+  // every phase change, which wiped after-mode feedback the instant the last
+  // player acted — the action advanced straight to the dealer's turn before
+  // the banner could be seen.)
   useEffect(() => {
-    setFeedback(null);
+    if (game.phase === GAME_PHASE.BETTING) setFeedback(null);
   }, [game.phase]);
 
   // Auto-scroll to active player
@@ -314,6 +343,23 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
     game.deal();
     audio?.playFlip();
   }, [game, audio]);
+
+  const handleRecharge = useCallback(() => {
+    // Recharge tops up the local human's stack. Only the host/solo player can
+    // mutate game state directly; guests sync from the host.
+    if (isMultiplayer && !multiplayer.isHost) return;
+    const idx = localPlayerIndex >= 0 ? localPlayerIndex : 0;
+    game.recharge(idx, BLACKJACK_RECHARGE_AMOUNT);
+    setBalancePulse(true);
+    audio?.playSuccess?.();
+  }, [game, localPlayerIndex, isMultiplayer, multiplayer.isHost, audio]);
+
+  // Clear the balance pulse once the animation has played.
+  useEffect(() => {
+    if (!balancePulse) return;
+    const timer = setTimeout(() => setBalancePulse(false), 600);
+    return () => clearTimeout(timer);
+  }, [balancePulse]);
 
   const handleStartSolo = useCallback((npcNames = []) => {
     setIsMultiplayer(false);
@@ -437,6 +483,51 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
             </button>
           </div>
         </div>
+
+        {/* Helper banner — pinned at top so it's always visible regardless of
+            scroll position or where you sit in the turn order. Shows after-mode
+            feedback when present, otherwise the before-mode strategy hint. */}
+        {feedback ? (
+          <div
+            key="feedback"
+            className="bj-banner"
+            style={{
+              ...styles.helperBanner,
+              background: feedback.isCorrect ? 'rgba(39,174,96,0.15)' : 'rgba(231,76,60,0.15)',
+              border: `1px solid ${feedback.isCorrect ? 'rgba(39,174,96,0.35)' : 'rgba(231,76,60,0.35)'}`,
+            }}
+          >
+            <span style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: feedback.isCorrect ? '#27ae60' : '#e74c3c',
+            }}>
+              {feedback.isCorrect ? '✓ Correct!' : '✗ Suboptimal'}
+            </span>
+            {!feedback.isCorrect && (
+              <span style={{ fontSize: 12, color: '#e67e22' }}>
+                Optimal: {ACTION_LABELS[feedback.optimalAction]} — {feedback.explanation}
+              </span>
+            )}
+          </div>
+        ) : (hintMode === 'before' && hint) ? (
+          <div
+            key="hint"
+            className="bj-banner"
+            style={{
+              ...styles.helperBanner,
+              background: 'rgba(241,196,0,0.1)',
+              border: '1px solid rgba(241,196,0,0.25)',
+            }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#f1c40f' }}>
+              💡 {ACTION_LABELS[hint.action]}
+            </span>
+            <span style={{ fontSize: 12, color: '#f1c40f', opacity: 0.85 }}>
+              {hint.explanation}
+            </span>
+          </div>
+        ) : null}
 
         {/* Connection status bar (multiplayer only) */}
         {isMultiplayer && (
@@ -634,6 +725,10 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
             lastBet={game.lastBet}
             localPlayerIndex={localPlayerIndex >= 0 ? localPlayerIndex : 0}
             isHost={isHost}
+            onRecharge={handleRecharge}
+            canRecharge={isHost}
+            rechargeAmount={BLACKJACK_RECHARGE_AMOUNT}
+            balancePulse={balancePulse}
             themeStyles={themeStyles}
           />
         )}
@@ -655,34 +750,12 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
             results={game.results}
             onNewRound={isHost ? game.newRound : undefined}
             showNewShoe={showNewShoe}
+            localChips={localPlayer?.chips ?? 0}
+            onRecharge={handleRecharge}
+            canRecharge={isHost}
+            rechargeAmount={BLACKJACK_RECHARGE_AMOUNT}
             themeStyles={themeStyles}
           />
-        )}
-
-        {/* Feedback bar (after-mode learning) */}
-        {feedback && (
-          <div style={{
-            ...styles.feedbackBar,
-            background: feedback.isCorrect
-              ? 'rgba(39,174,96,0.15)'
-              : 'rgba(231,76,60,0.15)',
-            border: `1px solid ${feedback.isCorrect
-              ? 'rgba(39,174,96,0.3)'
-              : 'rgba(231,76,60,0.3)'}`,
-          }}>
-            <span style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: feedback.isCorrect ? '#27ae60' : '#e74c3c',
-            }}>
-              {feedback.isCorrect ? '✓ Correct!' : '✗ Suboptimal'}
-            </span>
-            {!feedback.isCorrect && (
-              <span style={{ fontSize: 12, color: '#e67e22' }}>
-                Optimal: {ACTION_LABELS[feedback.optimalAction]} — {feedback.explanation}
-              </span>
-            )}
-          </div>
         )}
 
         {/* Stats bar */}
@@ -701,6 +774,14 @@ export default function BlackjackGame({ themeStyles, audio, haptics }) {
               ? `Win%: ${Math.round((game.stats.handsWon / game.stats.handsPlayed) * 100)}%`
               : 'Win%: —'}
           </span>
+          {(() => {
+            const net = (localPlayer?.chips ?? 0) - game.totalBuyIn;
+            return (
+              <span style={{ fontSize: 11, color: net > 0 ? '#27ae60' : net < 0 ? '#e74c3c' : '#95a5a6' }}>
+                Net: {net > 0 ? `+$${net}` : net < 0 ? `-$${Math.abs(net)}` : '$0'}
+              </span>
+            );
+          })()}
         </div>
       </div>
 
@@ -880,14 +961,17 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
   },
-  feedbackBar: {
+  helperBanner: {
     display: 'flex',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     padding: '8px 16px',
-    margin: '0 12px',
+    margin: '4px 12px',
     borderRadius: 8,
+    textAlign: 'center',
+    animation: 'bjBannerIn 0.2s ease-out',
   },
   statsBar: {
     display: 'flex',

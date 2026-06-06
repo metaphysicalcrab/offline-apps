@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useEffect, useRef } from 'react';
+import { useReducer, useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalStorage } from './useLocalStorage.js';
 import {
   BLACKJACK_CONFIG, GAME_PHASE, HAND_STATUS,
@@ -82,15 +82,7 @@ function reducer(state, action) {
         if (round === 0) dealtCards.push(result.card);
       }
 
-      // Check for dealer blackjack possibility (ace showing)
-      let phase = GAME_PHASE.PLAYER_TURN;
-
-      // Check if insurance should be offered
-      if (state.config.insuranceAllowed && shouldOfferInsurance(dealer.cards)) {
-        phase = GAME_PHASE.INSURANCE;
-      }
-
-      // Check all players for blackjack
+      // Mark player blackjacks
       const updatedPlayers = players.map(p => {
         const hand = p.hands[0];
         if (isBlackjack(hand.cards)) {
@@ -99,9 +91,21 @@ function reducer(state, action) {
         return p;
       });
 
-      // If all players have blackjack and no insurance phase, skip to dealer
+      // Determine opening phase. The dealer "peeks" for blackjack (US rules):
+      // when the upcard is an Ace or a ten-value card the round ends before
+      // players act if the dealer has a natural, so nobody can double/split
+      // into a dealer blackjack and lose extra.
+      let phase = GAME_PHASE.PLAYER_TURN;
+      const dealerHasBlackjack = isBlackjack(dealer.cards);
       const allBlackjack = updatedPlayers.every(p => p.hands[0].status === HAND_STATUS.BLACKJACK);
-      if (allBlackjack && phase !== GAME_PHASE.INSURANCE) {
+
+      if (state.config.insuranceAllowed && shouldOfferInsurance(dealer.cards)) {
+        // Ace showing — offer insurance first; the peek is deferred until the
+        // insurance decision is resolved (see TAKE/DECLINE_INSURANCE).
+        phase = GAME_PHASE.INSURANCE;
+      } else if (dealerHasBlackjack || allBlackjack) {
+        // Dealer peeked into a natural, or every player has blackjack — no
+        // player decisions remain, so go straight to the dealer reveal.
         phase = GAME_PHASE.DEALER_TURN;
       }
 
@@ -127,17 +131,34 @@ function reducer(state, action) {
         return p;
       });
 
-      // Check if all players have blackjack — skip to dealer
+      // Insurance is settled — now the dealer peeks. If the dealer has a
+      // natural (or every player already stands pat) the round ends before
+      // any player acts.
       const allDone = players.every(p =>
         p.hands.every(h => h.status !== HAND_STATUS.PLAYING)
       );
+      const dealerHasBlackjack = isBlackjack(state.dealer.cards);
 
       return {
         ...state,
         players,
-        phase: allDone ? GAME_PHASE.DEALER_TURN : GAME_PHASE.PLAYER_TURN,
+        phase: (allDone || dealerHasBlackjack) ? GAME_PHASE.DEALER_TURN : GAME_PHASE.PLAYER_TURN,
         currentPlayerIndex: 0,
       };
+    }
+
+    case 'RECHARGE': {
+      // Top up a player's chips between rounds so a broke player can keep
+      // playing. Restricted to non-active phases to avoid mid-hand edits.
+      if (state.phase !== GAME_PHASE.BETTING && state.phase !== GAME_PHASE.ROUND_OVER) {
+        return state;
+      }
+      const { playerIndex, amount } = action;
+      if (!amount || amount <= 0) return state;
+      const players = state.players.map((p, i) =>
+        i === playerIndex ? { ...p, chips: p.chips + amount } : p
+      );
+      return { ...state, players };
     }
 
     case 'HIT': {
@@ -499,6 +520,10 @@ export function useBlackjack() {
   const stateRef = useRef(state);
   stateRef.current = state;
 
+  // Session buy-in total (in-memory): starting stake plus any recharges.
+  // Net session P&L = current chips − totalBuyIn.
+  const [totalBuyIn, setTotalBuyIn] = useState(config.startingChips);
+
   // Restore chips on mount
   useEffect(() => {
     if (savedChips !== null && state.phase === GAME_PHASE.BETTING) {
@@ -564,7 +589,17 @@ export function useBlackjack() {
   const takeInsurance = useCallback(() => dispatch({ type: 'TAKE_INSURANCE' }), []);
   const declineInsurance = useCallback(() => dispatch({ type: 'DECLINE_INSURANCE' }), []);
   const newRound = useCallback(() => dispatch({ type: 'NEW_ROUND' }), []);
-  const reset = useCallback(() => dispatch({ type: 'RESET' }), []);
+  const reset = useCallback(() => {
+    dispatch({ type: 'RESET' });
+    setTotalBuyIn(config.startingChips);
+  }, [config.startingChips]);
+  const recharge = useCallback((playerIndex, amount) => {
+    dispatch({ type: 'RECHARGE', playerIndex, amount });
+    setTotalBuyIn(prev => prev + amount);
+    // Persist immediately so a top-up survives a refresh mid-betting.
+    const human = stateRef.current.players.find(p => !p.isNPC);
+    setSavedChips((human?.chips ?? config.startingChips) + amount);
+  }, [config.startingChips, setSavedChips]);
   const addPlayer = useCallback((name, id, isNPC) => dispatch({ type: 'ADD_PLAYER', name, id, isNPC }), []);
   const removePlayer = useCallback((idxOrId) => {
     if (typeof idxOrId === 'string') {
@@ -593,9 +628,11 @@ export function useBlackjack() {
     declineInsurance,
     newRound,
     reset,
+    recharge,
     addPlayer,
     removePlayer,
     lastBet,
+    totalBuyIn,
     stats: savedStats,
     runningCount,
     trueCount,
