@@ -19,6 +19,18 @@ TEMPLATE — Copy for each new decision:
 - **Related:** Links to relevant learnings, architecture sections, or other decisions.
 -->
 
+## DEC-006 — Allow "Double For Less"; `hand.bet` Holds the Full Committed Wager
+- **Date:** 2026-06-06
+- **Status:** Accepted
+- **Context:** Doubling down was hidden entirely whenever the player's remaining chips were below their original bet (`canDouble` returned false on `chips < bet`). A player on a downswing couldn't double even in textbook spots (e.g. 11 vs. dealer 6) simply because their balance had dipped under the bet. Separately, the wager model stored `bet` as the *original* stake and recomputed the doubled total as `isDoubled ? bet * 2` in three places — fine for full doubles but unable to represent a partial double.
+- **Options Considered:**
+  1. **Keep hiding double when short** — Pros: zero change / Cons: frustrating, blocks correct play, doesn't match common casino "double for less" courtesy.
+  2. **Double for less, tracked via a separate `doubleBet` field** — Pros: keeps `bet` meaning "original" / Cons: another field threaded through ~6 hand initializers and all payout/display sites; two sources of truth for the total.
+  3. **Double for less, fold the doubled stake into `hand.bet`** — Pros: single source of truth for the committed wager, deletes the scattered `× 2` logic, payouts/display "just work" for full and partial doubles / Cons: `bet` semantics shift (now total, not original) — anything reading `bet` after a double sees the larger number (desired here).
+- **Decision:** Option 3. `canDouble` now only requires `chips > 0`; the `DOUBLE` reducer stakes `min(originalBet, chips)` and adds it to `hand.bet`. `resolveHand`, results building, and the hand display read `hand.bet` directly (no multiplier). The control relabels to `Double $<amount>` when the stake is reduced.
+- **Consequences:** Short-stacked players (human and NPC) can always double for whatever they have. `hand.bet` means "total committed wager" post-double; split/insurance/canSplit all read it *before* any double so they're unaffected. Blackjack hands are never doubled, so the BJ bonus still uses the original `bet` correctly.
+- **Related:** `src/game/blackjack.js` (`canDouble`, `resolveHand`), `src/hooks/useBlackjack.js` (`DOUBLE`, results), `src/components/BlackjackControls.jsx`, `src/components/BlackjackHand.jsx`
+
 ## DEC-005 — Dealer Peeks for Blackjack (US "Peek" Rules)
 - **Date:** 2026-06-06
 - **Status:** Accepted

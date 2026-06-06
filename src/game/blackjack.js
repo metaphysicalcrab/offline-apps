@@ -71,7 +71,10 @@ export function canSplit(hand, totalHands, resplitLimit, chips, doubleAfterSplit
 
 export function canDouble(hand, chips) {
   if (hand.cards.length !== 2) return false;
-  if (chips < hand.bet) return false;
+  // "Double for less": the player may double as long as they have any chips
+  // left. If they can't cover the full original bet they wager whatever
+  // remains (see the DOUBLE reducer), rather than the option being hidden.
+  if (chips <= 0) return false;
   return true;
 }
 
@@ -91,7 +94,7 @@ export function shouldOfferInsurance(dealerCards) {
 }
 
 export function resolveHand(playerHand, dealerTotal, dealerBlackjack, config) {
-  const { cards, bet, status, isDoubled, insuranceBet } = playerHand;
+  const { cards, bet, status, insuranceBet } = playerHand;
 
   if (status === HAND_STATUS.SURRENDER) {
     return { payout: Math.ceil(bet / 2), result: 'surrender' };
@@ -103,7 +106,9 @@ export function resolveHand(playerHand, dealerTotal, dealerBlackjack, config) {
 
   let payout = 0;
   let result = 'loss';
-  const totalBet = isDoubled ? bet * 2 : bet;
+  // `bet` already holds the full committed wager — the DOUBLE reducer folds the
+  // (possibly partial) doubled stake into it — so no extra multiplier is needed.
+  const totalBet = bet;
 
   // Insurance payout
   let insurancePayout = 0;

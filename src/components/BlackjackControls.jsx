@@ -15,6 +15,9 @@ export default function BlackjackControls({
   hint,
   showHint,
   themeStyles,
+  // When the player can't cover a full matching bet, this is the (smaller)
+  // amount they'd stake on a "double for less" — used to relabel the button.
+  doubleForLessAmount = null,
 }) {
   return (
     <div style={styles.container}>
@@ -25,6 +28,10 @@ export default function BlackjackControls({
           const cfg = ACTION_CONFIG[action];
           if (!cfg) return null;
           const isHinted = showHint && hint?.action === action;
+          const label =
+            action === BLACKJACK_ACTIONS.DOUBLE && doubleForLessAmount != null
+              ? `Double $${doubleForLessAmount}`
+              : cfg.label;
           return (
             <button
               key={action}
@@ -35,10 +42,10 @@ export default function BlackjackControls({
                 ...(isHinted ? styles.hintedBtn : {}),
                 flex: action === BLACKJACK_ACTIONS.HIT || action === BLACKJACK_ACTIONS.STAND ? 2 : 1,
               }}
-              aria-label={cfg.label}
+              aria-label={label}
             >
               <span style={{ fontSize: 18 }}>{cfg.icon}</span>
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{cfg.label}</span>
+              <span style={{ fontSize: 13, fontWeight: 600 }}>{label}</span>
             </button>
           );
         })}

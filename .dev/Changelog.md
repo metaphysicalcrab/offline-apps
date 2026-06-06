@@ -14,6 +14,15 @@ FORMAT:
 - Decisions made (reference DEC-### in Decisions.md if logged)
 -->
 
+## 2026-06-06 — Blackjack: Double For Less + Leading-Blackjack Turn Stall Fix
+**Focus:** Fix a stuck-game bug when the leading player draws blackjack, and let short-stacked players still double
+- **Bug fix:** A leading player dealt a natural left the turn pointed at an already-resolved hand. `advanceToNextHand` only moves forward (post-action), so the round never progressed; when that player was an NPC the game hung entirely (NPCs no-op on non-PLAYING hands). Added `findFirstPlayableHand` and now position the turn on the first hand needing a decision when entering PLAYER_TURN — both after DEAL and after insurance resolution. (L-005)
+- **Feature — double for less:** `canDouble` previously hid the option whenever `chips < bet`. It now allows a double with any remaining chips; the DOUBLE reducer stakes `min(originalBet, chips)`. (DEC-006)
+- Reworked the wager model: `hand.bet` now carries the full committed wager (the doubled stake is folded in), removing the scattered `isDoubled ? bet * 2` logic in `resolveHand`, results building, and the hand display — payouts stay correct for full and partial doubles alike.
+- The Double button relabels to `Double $<amount>` when the stake is reduced, so the player sees they're doubling for less.
+- Issues encountered: L-005 (turn positioning)
+- Decisions made: DEC-006 (double for less)
+
 ## 2026-06-06 — Blackjack: Haptic Feedback
 **Focus:** Wire the previously-unused haptics into the blackjack table (mobile polish)
 - `haptics` was passed into BlackjackGame but never used despite the infra existing in every other mode

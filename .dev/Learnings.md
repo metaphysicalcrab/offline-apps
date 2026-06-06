@@ -20,6 +20,17 @@ TEMPLATE — Copy for each new learning:
 - **Related:** Links to code, decisions, other learnings, or external resources.
 -->
 
+## L-005 — Turn order stalls when the leading player stands pat at deal
+- **Date:** 2026-06-06
+- **Category:** Bug
+- **Severity:** High
+- **What happened:** When the first player in seat order was dealt a blackjack, the round froze on their hand. If that player was an NPC the whole game hung — the NPC auto-play effect no-ops on any hand whose status isn't `PLAYING`, so nothing ever advanced the turn.
+- **Root cause:** `DEAL` (and the post-insurance transition) always set `currentPlayerIndex: 0` / `activeHandIndex: 0` without checking whether that hand actually needs a decision. `advanceToNextHand` only ever scans *forward* from the current hand and is only invoked *after* an action — so a resolved leading hand is never skipped at the start of the turn. The existing `allBlackjack` guard only covered the all-players-blackjack case, not the mixed case.
+- **Solution/Workaround:** Added `findFirstPlayableHand(players)` and position the turn on the first `PLAYING` hand when entering `PLAYER_TURN` (in `DEAL` and in `TAKE/DECLINE_INSURANCE`); if none exists, go straight to the dealer.
+- **Prevention:** Whenever you *enter* a turn-based phase, validate that the starting cursor points at an actor that can actually act — don't assume index 0 is live. "Advance" helpers that only move forward can't fix a bad initial position.
+- **Time lost:** ~20min
+- **Related:** `src/hooks/useBlackjack.js` (`findFirstPlayableHand`, `DEAL`, insurance cases); reported via in-game screenshot (NPC with J♥A♦).
+
 ## L-004 — minHeight breaks nested flex scroll containment
 - **Date:** 2026-03-25
 - **Category:** Bug
